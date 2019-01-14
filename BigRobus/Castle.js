@@ -51,7 +51,6 @@ export default class Castle extends RobotController{
 
             return this.buildRobot();
         }
-
     }
 
     buildRobot(){
@@ -63,6 +62,7 @@ export default class Castle extends RobotController{
             let choice = choices[i];
             let dX = this.robot.me.x + choice[0];
             let dY = this.robot.me.y + choice[1];
+
             if (unitToBuild != null && dX > 0 && dY > 0 && dX < this.robot.map.length && dY < this.robot.map.length && this.robot.getVisibleRobotMap()[dY][dX] <= 0 && this.robot.map[dY][dX] === true) {
                 return this.robot.buildUnit(unitToBuild, choice[0], choice[1])
             }

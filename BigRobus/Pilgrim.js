@@ -3,6 +3,7 @@ import RobotController from "./RobotController.js";
 import {getSymmetricNode} from "./utils.js";
 import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
 
+
 export default class Pilgrim extends RobotController{
 
     constructor(robot){
@@ -19,6 +20,7 @@ export default class Pilgrim extends RobotController{
 
         //this.updateCastlesMap();
         this.updateResourcesMap();
+
     }
 
 
@@ -147,6 +149,7 @@ export default class Pilgrim extends RobotController{
             }
             radius++;
         }
+
     }
 
     updateRobotObject(robot){

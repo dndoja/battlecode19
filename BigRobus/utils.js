@@ -157,7 +157,7 @@ export function getCoordsFromEightBits(robot,map,bits,symmetry) {
         if (robot.me.x > map.length / 2){
             scaledND += map.length / 2;
         }
-        return {x: scaledND, y:scaledD}
+        return {x: scaledD,y:scaledND};
     }
 }
 

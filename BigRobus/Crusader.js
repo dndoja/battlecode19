@@ -3,6 +3,7 @@ import RobotController from "./RobotController.js";
 import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
 import {getDistanceBetweenPoints,getSymmetricNode} from "./utils.js";
 
+
 const ATTACK_RANGE = 16;
 const VISION_RADIUS = 36;
 
@@ -85,6 +86,7 @@ export default class Crusader extends RobotController{
         if (unexploredCastles.length !== this.enemyCastles.length){
             this.enemyCastles = unexploredCastles;
             this.updateEnemyCastlesMap()
+
         }
     }
 
@@ -96,6 +98,7 @@ export default class Crusader extends RobotController{
     moveAccordingToMap(){
         super.setDijkstraMap(this.enemyCastlesMap);
         let delta = super.moveAlongDijkstraMap(1);
+
         if (delta) {
             //this.robot.log("dX: " + delta.dX + " dY: " + delta.dY);
             return this.robot.move(delta.dX, delta.dY);

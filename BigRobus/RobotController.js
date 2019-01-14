@@ -3,6 +3,7 @@ import CONSTANTS from "./constants.js";
 import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
 import {getDistanceBetweenPoints,getCoordsFromEightBits, padWithZeros,getMapSymmetryType,getSymmetricNode} from "./utils.js";
 
+
 export default class RobotController {
 
     constructor(robot){
