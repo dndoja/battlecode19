@@ -5,7 +5,7 @@ export default class PointClusterGenerator {
     constructor(points,robot){
         this.robot = robot;
         this.points = points;
-        this.radius = 3;
+        this.radius = 10;
     }
 
     setClusterRadius(radius){
@@ -33,7 +33,17 @@ export default class PointClusterGenerator {
             }
         }
 
+        clusters.sort(function (a, b) {
+           if (a.points.length > b.points.length){
+               return -1;
+           }else if (a.points.length < b.points.length){
+               return 1
+           }else{
+               return 0
+           }
+        });
         this.clusters = clusters;
+        return clusters;
     }
 
     recalculateClusterCentroid(cluster) {
@@ -61,7 +71,7 @@ export default class PointClusterGenerator {
                 str += "(" + point.x + "," + point.y + ") "
             }
 
-            str += " | (" + this.clusters[i].centroid.x + "," + this.clusters[i].centroid.y + ")"
+            str += " | (" + this.clusters[i].centroid.x + "," + this.clusters[i].centroid.y + ")" + " [" + this.clusters[i].points.length + "]";
             this.robot.log(str);
         }
     }
