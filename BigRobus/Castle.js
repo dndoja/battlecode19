@@ -12,6 +12,8 @@ export default class Castle extends RobotController{
         this.castlePositions = [];
         this.symmetry = getMapSymmetryType(this.robot.map);
         this.bi = false;
+        this.pilgrimCount = 0;
+        this.karbMines = this.getKarboniteMinesNearby().length;
     }
 
     updateRobotObject(robot){
@@ -33,10 +35,14 @@ export default class Castle extends RobotController{
 
         }
 
-        if (this.willBuildRobots) {
+        if (this.willBuildRobots && this.pilgrimCount < this.karbMines) {
             let builtRobot = this.buildRobot();
             if (builtRobot) {
-                if (this.castlePositions.length === 1) {
+                if (this.pilgrimCount < 255) {
+                    this.robot.signal(this.pilgrimCount,2);
+                    this.pilgrimCount++;
+                }
+                /*if (this.castlePositions.length === 1) {
                     let firstCastle = fitCoordsInEightBits(this.robot, this.robot.map, this.castlePositions[0].x, this.castlePositions[0].y, this.symmetry);
                     //this.robot.log("x: " + this.castlePositions[0].x + " y: " + this.castlePositions[0].y + " bin: " + firstCastle);
                     this.robot.signal(parseInt(firstCastle, 2), 2)
@@ -46,7 +52,7 @@ export default class Castle extends RobotController{
                     let merged = firstCastle + secondCastle;
                     //this.robot.log(merged);
                     this.robot.signal(parseInt(merged, 2), 2)
-                }
+                }*/
             }
 
             return this.buildRobot();
@@ -100,5 +106,20 @@ export default class Castle extends RobotController{
         }else {
             return{x: this.position.x, y: symmetricalY}
         }
+    }
+
+    getKarboniteMinesNearby(){
+        let offsets = super.getOffsetsFromRadius(5,this.robot.me.x,this.robot.me.y);
+        let karboniteMines = [];
+
+        for (let y = offsets.bottom; y <= offsets.top; y++){
+            for (let x = offsets.left; x <= offsets.right; x++){
+                if (this.robot.karbonite_map[y][x] === true) {
+                    karboniteMines.push({x:x,y:y})
+                }
+            }
+        }
+
+        return karboniteMines;
     }
 }

@@ -1,0 +1,9 @@
+.idea/
+Clairvoyance/
+node_modules/
+replay.bc19
+package-lock.json
+package.json
+bigrobus.js
+battlecode.ts
+replay/

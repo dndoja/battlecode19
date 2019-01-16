@@ -2,61 +2,38 @@ import {SPECS,BCAbstractRobot} from 'battlecode'
 import RobotController from "./RobotController.js";
 import {getSymmetricNode} from "./utils.js";
 import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
+import {calculateDiagonalDistance} from "./utils.js";
 
+const MAX_DIST_TO_FUEL = 10;
+const RADIUS_MINES = 10;
 
 export default class Pilgrim extends RobotController{
 
     constructor(robot){
         super(robot);
         this.updateRobotObject(robot);
-        this.friendlyCastles = [];
+        /*this.friendlyCastles = [];
         this.moves = [];
 
         this.friendlyCastles.push(super.getClosestCastle());
         let coords = super.getCoordinatesFromCastle();
         for (let i = 0; i < coords.length; i++){
             this.friendlyCastles.push(coords[i].x,coords[i].y);
-        }
+        }*/
 
+        this.init()
         //this.updateCastlesMap();
-        this.updateResourcesMap()
+        //this.updateResourcesMap()
     }
 
     init(){
         this.home = super.getClosestStructure(this.robot.me.team);
         this.mineIndex = this.home.signal;
+        this.robot.log("M: " + this.mineIndex);
+
         this.targetMine = this.getTargetMine();
+        this.robot.log("tX: " + this.targetMine.x + " tY: "+ this.targetMine.y);
         this.generateTargetMap()
-    }
-
-    generateTargetMap(){
-        let generator = new DijkstraMapGenerator(this.robot);
-        generator.setLimits(this.robot.x - 1, this.robot.y - 1, this.targetMine.x + 1, this.targetMine.y + 1);
-        this.targetMap = generator.generateMap();
-    }
-
-    run(){
-        this.robot.castle_talk = this.mineIndex;
-        /*//Mine if at tile and has capacity
-        if (this.kMap[this.robot.me.y][this.robot.me.x] === 0 && this.robot.me.karbonite < 20){
-            return this.robot.mine()
-        }else if (this.kMap[this.robot.me.y][this.robot.me.x] !== 0 && this.robot.me.karbonite < 20){
-            // Go to deposit if not at deposit and has capacity
-            super.setDijkstraMap(this.kMap);
-            let movement = this.moveAlongDijkstraMap(1);
-            this.moves.push(movement);
-            if (movement){
-                return this.robot.move(movement.dX,movement.dY);
-            }
-        }else if (this.robot.me.karbonite === 20){
-            if (this.moves.length > 0){
-                let movement = this.moves[this.moves.length - 1];
-                this.moves.pop();
-                return this.robot.move(movement.dX * -1 ,movement.dY * -1)
-            }else{
-                return this.depositAtNearestCastle();
-            }
-        }*/
     }
 
     // TODO Make this target closest mines first
@@ -75,7 +52,132 @@ export default class Pilgrim extends RobotController{
         }
     }
 
-    depositAtNearestCastle(){
+    getClosestFuelMine(){
+        let offsets = super.getOffsetsFromRadius(10,this.home.x,this.home.y);
+        let closestDist = 100000;
+        let closestLoc;
+
+        for (let y = offsets.bottom; y <= offsets.top; y++){
+            for (let x = offsets.left; x <= offsets.right; x++){
+                if (this.robot.fuel_map[y][x] === true) {
+                    let dist = calculateDiagonalDistance(this.robot.me,{x:x,y:y});
+                    if (dist < closestDist){
+                        closestLoc = {position:{x:x,y:y},distanceTo:dist}
+                    }
+                }
+            }
+        }
+
+        return closestLoc;
+    }
+
+    generateTargetMap(){
+        let generator = new DijkstraMapGenerator(this.robot);
+        generator.setLimits(this.home.x - RADIUS_MINES, this.home.y - RADIUS_MINES, this.targetMine.x + RADIUS_MINES, this.targetMine.y + RADIUS_MINES);
+        generator.addGoal(this.targetMine);
+        this.kMap = generator.generateMap();
+        //this.robot.log("K:");
+        //generator.printMap()
+    }
+
+    generateHomeMap(){
+        let generator = new DijkstraMapGenerator(this.robot);
+        generator.setLimits(this.robot.me.x - RADIUS_MINES, this.robot.me.y - RADIUS_MINES, this.targetMine.x + RADIUS_MINES, this.targetMine.y + RADIUS_MINES);
+        generator.addGoal(this.home);
+        this.hMap = generator.generateMap();
+        generator.printMap()
+    }
+
+    generateFuelMap(){
+        let closestFuelMine = this.getClosestFuelMine();
+        if (closestFuelMine.distanceTo <= MAX_DIST_TO_FUEL){
+            let generator = new DijkstraMapGenerator(this.robot);
+            generator.setLimits(this.robot.me.x - RADIUS_MINES, this.robot.me.y - RADIUS_MINES, this.targetMine.x + RADIUS_MINES, this.targetMine.y + RADIUS_MINES);
+            generator.addGoal(closestFuelMine.position);
+            this.fMap = generator.generateMap();
+            this.robot.log("F:");
+            //generator.printMap();
+
+            return
+        }
+
+        this.fMap = null;
+    }
+
+    run(){
+        this.robot.castle_talk = this.mineIndex;
+
+        if (this.isCappedOnKarb() === false){
+            if (this.isOnTargetKarboniteMine() === true){
+                return this.robot.mine()
+            }else{
+                return this.moveTowardsKarboniteMine()
+            }
+        }else if (this.isCappedOnFuel() === false){
+            if (!this.fMap){ this.generateFuelMap() }
+
+            if (this.hasNearbyFuelMap() === true){
+                if (this.isOnTargetFuelMine() === true){
+                    return this.robot.mine()
+                }else{
+                    return this.moveTowardsFuelMine()
+                }
+            }
+        }else{
+            if (!this.hMap){ this.generateHomeMap() }
+            if (this.isHome() === true){
+                return this.depositAtNearestStructure()
+            }else{
+                return this.moveTowardsHome()
+            }
+        }
+    }
+
+    hasNearbyFuelMap(){
+        return this.fMap != null
+    }
+
+    moveTowardsHome(){
+        return this.moveTowardsMine(this.hMap)
+    }
+
+    moveTowardsKarboniteMine(){
+        return this.moveTowardsMine(this.kMap)
+    }
+
+    moveTowardsFuelMine(){
+        return this.moveTowardsMine(this.fMap)
+    }
+
+    moveTowardsMine(map){
+        super.setDijkstraMap(map);
+        let movement = super.moveAlongDijkstraMap(1);
+        if (movement){
+            return this.robot.move(movement.dX,movement.dY)
+        }
+    }
+
+    isOnTargetKarboniteMine(){
+        return this.kMap[this.robot.me.y][this.robot.me.x] === 0
+    }
+
+    isOnTargetFuelMine(){
+        return this.fMap[this.robot.me.y][this.robot.me.x] === 0
+    }
+
+    isHome() {
+        return this.hMap[this.robot.me.y][this.robot.me.x] <= 1
+    }
+
+    isCappedOnFuel(){
+        return this.robot.me.fuel === 100
+    }
+
+    isCappedOnKarb(){
+        return this.robot.me.karbonite === 20
+    }
+
+    depositAtNearestStructure(){
         let units = this.robot.getVisibleRobotMap();
 
         for (let offY = -1; offY <= 1; offY++){
@@ -90,6 +192,33 @@ export default class Pilgrim extends RobotController{
                     }
                 }
             }
+        }
+    }
+
+    updateRobotObject(robot){
+        this.robot = robot;
+        super.updateRobotObject(robot)
+    }
+
+    updateResourcesMap(){
+        let closestKarb = this.getClosestFuelMine(this.robot.karbonite_map);
+        let closestFuel = this.getClosestFuelMine(this.robot.fuel_map);
+
+
+        if (closestKarb){
+            let generator = new DijkstraMapGenerator(this.robot);
+            generator.addGoal(closestKarb);
+            generator.setLimits(this.robot.me.x - 1,this.robot.me.y - 1,closestKarb.x,closestKarb.y);
+            this.kMap = generator.generateMap();
+            //generator.printMap()
+        }
+
+        if (closestFuel){
+            let generator = new DijkstraMapGenerator(this.robot);
+            generator.addGoal(closestFuel);
+            generator.setLimits(this.robot.me.x - 1,this.robot.me.y - 1,closestKarb.x,closestKarb.y);
+            this.fMap = generator.generateMap();
+            //generator.printMap()
         }
     }
 
@@ -121,67 +250,5 @@ export default class Pilgrim extends RobotController{
         let generator = new DijkstraMapGenerator();
         generator.addGoals(goals);
         this.kMap = generator.generateMap();
-    }
-
-    updateResourcesMap(){
-        let closestKarb = this.getClosestResource(this.robot.karbonite_map);
-        let closestFuel = this.getClosestResource(this.robot.fuel_map);
-
-
-        if (closestKarb){
-            let generator = new DijkstraMapGenerator(this.robot);
-            generator.addGoal(closestKarb);
-            generator.setLimits(this.robot.me.x - 1,this.robot.me.y - 1,closestKarb.x,closestKarb.y);
-            this.kMap = generator.generateMap();
-            //generator.printMap()
-        }
-
-        if (closestFuel){
-            let generator = new DijkstraMapGenerator(this.robot);
-            generator.addGoal(closestFuel);
-            generator.setLimits(this.robot.me.x - 1,this.robot.me.y - 1,closestKarb.x,closestKarb.y);
-            this.fMap = generator.generateMap();
-            //generator.printMap()
-        }
-    }
-
-    getClosestResource(map){
-        let radius = 1;
-
-        while (radius < map.length) {
-            let offsets = this.getOffsetsFromRadius(radius, this.robot.me.x, this.robot.me.y);
-            //Top and bottom
-            for (let x = offsets.left; x <= offsets.right; x++) {
-                let valueTop = map[offsets.top][x];
-                let valueBottom = this.robot.karbonite_map[offsets.bottom][x];
-                if (valueTop === true){
-                    return {y:offsets.top,x:x}
-                }
-
-                if (valueBottom === true){
-                    return {y:offsets.bottom,x:x}
-                }
-            }
-
-            //Left and right
-            for (let y = offsets.bottom; y <= offsets.top; y++) {
-                let valueRight = map[y][offsets.right];
-                let valueLeft = map[y][offsets.left];
-                if (valueLeft === true){
-                    return {y:y,x:offsets.left}
-                }
-
-                if (valueRight === true){
-                    return {y:y,x:offsets.right}
-                }
-            }
-            radius++;
-        }
-
-    }
-
-    updateRobotObject(robot){
-        this.robot = robot;
-        super.updateRobotObject(robot)
     }
 }

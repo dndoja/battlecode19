@@ -39,7 +39,7 @@ class MyRobot extends BCAbstractRobot {
             }
             return this.robot.run()
         }else if (this.me.unit === SPECS.CASTLE) {
-            if(!generatedMap) {
+            /*if(!generatedMap) {
                 let points = [];
                 for (let y = 0; y < this.map.length; y++) {
                     for (let x = 0; x < this.map.length; x++) {
@@ -54,14 +54,14 @@ class MyRobot extends BCAbstractRobot {
                 pcg.printClusters();
 
                 generatedMap = true;
-            }
+            }*/
 
             if(!this.robot) {
                 this.robot = new Castle(this);
             }else{
                 this.robot.updateRobotObject(this)
             }
-            //return this.robot.run()
+            return this.robot.run()
 
         }else if (this.me.unit === SPECS.PILGRIM){
             if(!this.robot) {

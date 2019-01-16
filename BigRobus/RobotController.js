@@ -1,8 +1,7 @@
 import {SPECS,BCAbstractRobot} from 'battlecode';
 import CONSTANTS from "./constants.js";
 import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
-import {getDistanceBetweenPoints,getCoordsFromEightBits, padWithZeros,getMapSymmetryType,getSymmetricNode} from "./utils.js";
-import {calculateDiagonalDistance} from "./utils";
+import {getDistanceBetweenPoints,getCoordsFromEightBits, padWithZeros,getMapSymmetryType,getSymmetricNode,calculateDiagonalDistance} from "./utils.js";
 
 
 export default class RobotController {
