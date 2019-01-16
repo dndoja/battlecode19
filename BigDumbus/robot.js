@@ -2,7 +2,7 @@ import {BCAbstractRobot,SPECS} from 'battlecode';
 
 let step = -1;
 let generatedMap = false;
-const dostuff = true;
+const dostuff = false;
 
 class MyRobot extends BCAbstractRobot {
     turn() {

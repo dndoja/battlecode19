@@ -1,21 +1,4 @@
-import {BCAbstractRobot,SPECS} from 'battlecode';
-import {teamComposition} from "./strategy.js";
 import CONSTANTS from "./constants.js";
-
-export function getVisibleFriendlyRobots(robot){
-    let friendlyTeam = robot.me.team;
-    let visibleRobots = robot.getVisibleRobots();
-
-    let friendlyRobots = [];
-    for (let i = 0; i < visibleRobots.length; i++){
-        let robot = visibleRobots[i];
-        if (robot.me.team === friendlyTeam){
-            friendlyRobots.push(robot)
-        }
-    }
-
-    return friendlyRobots;
-}
 
 export function getVisibleFriendlyRobotsOfType(robot,type){
     let friendlyTeam = robot.me.team;
@@ -30,22 +13,6 @@ export function getVisibleFriendlyRobotsOfType(robot,type){
     }
 
     return pilgrims;
-}
-
-export function getAmountOfUnitsOfTypeInList(units,unitType) {
-    let amount = 0;
-
-    for (let i = 0; i < units.length; i++){
-        if (units[i].me.unit === unitType){
-            amount++
-        }
-    }
-
-    return amount;
-}
-
-export function getNearbyMines(unit){
-    let unitPosition = {x: unit.me.x, y: unit.me.y};
 }
 
 export function fitPointInMap(unit,point){
@@ -63,33 +30,6 @@ export function fitPointInMap(unit,point){
     }
 
     return {x:pointX, y:pointY}
-}
-
-export function getUnitTypeToProduce() {
-    let random = Math.floor(Math.random() * 100) + 1;
-    let lowerBound = 1;
-    let upperBound = 100 * teamComposition.crusaderPercent;
-    if (random < upperBound && random >= lowerBound){
-        return SPECS.CRUSADER
-    }
-
-    lowerBound += upperBound;
-    upperBound = 100 * teamComposition.pilgrimPercent;
-    if (random < upperBound && random >= lowerBound){
-        return SPECS.PILGRIM
-    }
-
-    lowerBound += upperBound;
-    upperBound = 100 * teamComposition.preacherPercent;
-    if (random < upperBound && random >= lowerBound){
-        return SPECS.PREACHER
-    }
-
-    lowerBound += upperBound;
-    upperBound = 100 * teamComposition.prophetPercent;
-    if (random < upperBound && random >= lowerBound) {
-        return SPECS.PROPHET
-    }
 }
 
 export function getMapSymmetryType(map) {
@@ -178,4 +118,11 @@ export function getSymmetricNode(x,y,map,symmetry){
     }else {
         return{x: x, y: symmetricalY};
     }
+}
+
+export function calculateDiagonalDistance(current, goal) {
+    let absX = Math.abs(goal.x - current.x);
+    let absY = Math.abs(goal.y - current.y);
+
+    return Math.max(absX,absY)
 }

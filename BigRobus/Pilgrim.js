@@ -19,8 +19,7 @@ export default class Pilgrim extends RobotController{
         }
 
         //this.updateCastlesMap();
-        this.updateResourcesMap();
-
+        this.updateResourcesMap()
     }
 
 

@@ -13,10 +13,10 @@ export default class DijkstraMapGenerator {
     }
     
     setLimits(startX, startY, endX, endY){
-        this.startX = startX;
-        this.startY = startY;
-        this.endX = endX;
-        this.endY = endY;
+        this.startX = startX > 0 ? startX : 0;
+        this.startY = startY > 0 ? startY : 0;
+        this.endX = endX > this.robot.map.length ? this.robot.map.length : endX;
+        this.endY = endY > this.robot.map.length ? this.robot.map.length : endY;
     }
 
     populateMapWithInitialValues(){

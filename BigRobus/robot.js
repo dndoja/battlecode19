@@ -5,10 +5,9 @@ import DijkstraMapGenerator from  './DijkstraMapGenerator.js'
 import RobotController from "./RobotController.js";
 import Castle from "./Castle.js";
 import Crusader from "./Crusader.js";
-<<<<<<< HEAD
 import Pilgrim from "./Pilgrim.js";
-=======
->>>>>>> 03f6a0f782cdeaa4c35204465db0faf479e9d770
+import PointClusterGenerator from "./PointClusterGenerator.js";
+
 
 let turn = -1;
 let generatedMap = false;
@@ -41,6 +40,19 @@ class MyRobot extends BCAbstractRobot {
             return this.robot.run()
         }else if (this.me.unit === SPECS.CASTLE) {
             if(!generatedMap) {
+                let points = [];
+                for (let y = 0; y < this.map.length; y++) {
+                    for (let x = 0; x < this.map.length; x++) {
+                        if (this.karbonite_map[y][x] === true || this.fuel_map[y][x] === true){
+                            points.push({x:x,y:y})
+                        }
+                    }
+                }
+
+                let pcg = new PointClusterGenerator(points,this);
+                pcg.generateClusters();
+                pcg.printClusters();
+
                 generatedMap = true;
             }
 
@@ -49,7 +61,7 @@ class MyRobot extends BCAbstractRobot {
             }else{
                 this.robot.updateRobotObject(this)
             }
-            return this.robot.run()
+            //return this.robot.run()
 
         }else if (this.me.unit === SPECS.PILGRIM){
             if(!this.robot) {
