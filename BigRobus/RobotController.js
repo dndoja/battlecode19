@@ -2,6 +2,7 @@ import {SPECS,BCAbstractRobot} from 'battlecode';
 import CONSTANTS from "./constants.js";
 import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
 import {getDistanceBetweenPoints,getCoordsFromEightBits, padWithZeros,getMapSymmetryType,getSymmetricNode} from "./utils.js";
+import {calculateDiagonalDistance} from "./utils";
 
 
 export default class RobotController {
@@ -18,6 +19,42 @@ export default class RobotController {
     updateRobotObject(robot){
         this.robot = robot;
         this.position = {x: robot.me.x, y: robot.me.y};
+    }
+
+    getClosestStructure(team){
+        let robots = this.robot.getVisibleRobots();
+        let smallestDist = 10000000;
+        let closest;
+
+        for (let i = 0; i < robots.length; i++){
+            if ((robots[i].unit === SPECS.CASTLE || robots[i].unit === SPECS.CHURCH) && (team === undefined || robots[i].team === team)){
+                let dist = calculateDiagonalDistance(this.position,robots[i]);
+                if (dist < smallestDist){
+                    smallestDist = dist;
+                    closest = robots[i];
+                }
+            }
+        }
+
+        return closest;
+    }
+
+    getClosestUnitOfSpecs(unit,team){
+        let robots = this.robot.getVisibleRobots();
+        let smallestDist = 10000000;
+        let closest;
+
+        for (let i = 0; i < robots.length; i++){
+            if ((unit === undefined || robots[i].unit === unit) && (team === undefined || robots[i].team === team)){
+                let dist = calculateDiagonalDistance(this.position,robots[i]);
+                if (dist < smallestDist){
+                    smallestDist = dist;
+                    closest = robots[i];
+                }
+            }
+        }
+
+        return closest;
     }
 
     moveAlongDijkstraMap(radius){
@@ -43,20 +80,6 @@ export default class RobotController {
                             }
                         }
                     }
-            }
-        }
-    }
-
-    prioritizeStayingGrouped(nearbyUnits,radius){
-        let currentValue = this.djMap[this.position.y][this.position.x];
-        for (let i = 0; i < nearbyUnits.length; i++){
-            let surroundingNodes = this.getSurroundingNodes(1,nearbyUnits[i].x, nearbyUnits[i].y);
-            for (let a = 0; a < surroundingNodes.length; a++){
-                let node = surroundingNodes[a];
-
-                if (this.djMap[node.y][node.x] < currentValue){
-                    this.djMap[node.y][node.x] -= 1
-                }
             }
         }
     }

@@ -22,9 +22,22 @@ export default class Pilgrim extends RobotController{
         this.updateResourcesMap()
     }
 
+    init(){
+        this.home = super.getClosestStructure(this.robot.me.team);
+        this.mineIndex = this.home.signal;
+        this.targetMine = this.getTargetMine();
+        this.generateTargetMap()
+    }
+
+    generateTargetMap(){
+        let generator = new DijkstraMapGenerator(this.robot);
+        generator.setLimits(this.robot.x - 1, this.robot.y - 1, this.targetMine.x + 1, this.targetMine.y + 1);
+        this.targetMap = generator.generateMap();
+    }
 
     run(){
-        //Mine if at tile and has capacity
+        this.robot.castle_talk = this.mineIndex;
+        /*//Mine if at tile and has capacity
         if (this.kMap[this.robot.me.y][this.robot.me.x] === 0 && this.robot.me.karbonite < 20){
             return this.robot.mine()
         }else if (this.kMap[this.robot.me.y][this.robot.me.x] !== 0 && this.robot.me.karbonite < 20){
@@ -42,6 +55,22 @@ export default class Pilgrim extends RobotController{
                 return this.robot.move(movement.dX * -1 ,movement.dY * -1)
             }else{
                 return this.depositAtNearestCastle();
+            }
+        }*/
+    }
+
+    // TODO Make this target closest mines first
+    getTargetMine(){
+        let offsets = super.getOffsetsFromRadius(10,this.home.x,this.home.y);
+        let skips = this.mineIndex;
+        for (let y = offsets.bottom; y <= offsets.top; y++){
+            for (let x = offsets.left; x <= offsets.right; x++){
+                if (this.robot.karbonite_map[y][x] === true) {
+                    if (skips === 0) {
+                        return {x: x, y: y}
+                    }
+                    skips--
+                }
             }
         }
     }
