@@ -16,7 +16,7 @@ export default class Crusader extends RobotController{
         let closestEnemyCastles = super.getClosestCastle();
         this.enemyCastles.push(getSymmetricNode(closestEnemyCastles.x,closestEnemyCastles.y,this.robot.map,this.symmetry));
 
-        let coords = super.getCoordinatesFromCastle();
+        let coords = super.getRadioCoordsFromHomeCastle();
         for (let i = 0; i < coords.length; i++){
             this.enemyCastles.push(getSymmetricNode(coords[i].x,coords[i].y,this.robot.map,this.symmetry));
         }
@@ -86,7 +86,6 @@ export default class Crusader extends RobotController{
         if (unexploredCastles.length !== this.enemyCastles.length){
             this.enemyCastles = unexploredCastles;
             this.updateEnemyCastlesMap()
-
         }
     }
 

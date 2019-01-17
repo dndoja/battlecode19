@@ -22,8 +22,6 @@ export default class Castle extends RobotController{
     }
 
     run(){
-        let broadcastRange = 2;
-
         if (this.robot.me.turn <= 2) {
             this.broadcastCastlePosition();
             this.listenToCastlePositions();
@@ -32,36 +30,44 @@ export default class Castle extends RobotController{
                     this.willBuildRobots = true;
                 }
             }
-
         }
 
-        if (this.pilgrimCount < this.karbMines) {
-            let builtRobot = this.buildRobot();
-            if (builtRobot) {
-                if (this.pilgrimCount < 255) {
-                    this.robot.signal(this.pilgrimCount,2);
-                    this.pilgrimCount++;
-                }
-                /*if (this.castlePositions.length === 1) {
-                    let firstCastle = fitCoordsInEightBits(this.robot, this.robot.map, this.castlePositions[0].x, this.castlePositions[0].y, this.symmetry);
-                    //this.robot.log("x: " + this.castlePositions[0].x + " y: " + this.castlePositions[0].y + " bin: " + firstCastle);
-                    this.robot.signal(parseInt(firstCastle, 2), 2)
-                } else if (this.castlePositions.length === 2) {
-                    let firstCastle = fitCoordsInEightBits(this.robot, this.robot.map, this.castlePositions[0].x, this.castlePositions[0].y, this.symmetry);
-                    let secondCastle = fitCoordsInEightBits(this.robot, this.robot.map, this.castlePositions[1].x, this.castlePositions[1].y, this.symmetry);
-                    let merged = firstCastle + secondCastle;
-                    //this.robot.log(merged);
-                    this.robot.signal(parseInt(merged, 2), 2)
-                }*/
-            }
+        if (this.willBuildRobots === true) {
+            let buildingDecision = this.getBuildingDecision();
 
-            return this.buildRobot();
+            if (buildingDecision) {
+                if (buildingDecision === SPECS.PILGRIM && this.pilgrimCount < this.karbMines) {
+                    if (this.pilgrimCount < 255) {
+                        this.robot.signal(this.pilgrimCount, 2);
+                        this.pilgrimCount++;
+                    }
+                } else if (buildingDecision === SPECS.PREACHER) {
+                    if (this.castlePositions.length === 1) {
+                        let firstCastle = fitCoordsInEightBits(this.robot, this.robot.map, this.castlePositions[0].x, this.castlePositions[0].y, this.symmetry);
+                        //this.robot.log("x: " + this.castlePositions[0].x + " y: " + this.castlePositions[0].y + " bin: " + firstCastle);
+                        this.robot.signal(parseInt(firstCastle, 2), 2)
+                    } else if (this.castlePositions.length === 2) {
+                        let firstCastle = fitCoordsInEightBits(this.robot, this.robot.map, this.castlePositions[0].x, this.castlePositions[0].y, this.symmetry);
+                        let secondCastle = fitCoordsInEightBits(this.robot, this.robot.map, this.castlePositions[1].x, this.castlePositions[1].y, this.symmetry);
+                        let merged = firstCastle + secondCastle;
+                        //this.robot.log(merged);
+                        this.robot.signal(parseInt(merged, 2), 2)
+                    }
+                }
+
+                return this.buildRobot(buildingDecision);
+            }
         }
     }
 
-    buildRobot(){
+
+    getBuildingDecision(){
         let decisionmaker = new BuildingDecisionMaker(this.robot);
-        let unitToBuild = decisionmaker.getBuildingDecision();
+        return decisionmaker.getBuildingDecision();
+    }
+
+    buildRobot(unitToBuild){
+
         const choices = [[0,-1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
 
         for (let i = 0; i < choices.length; i++) {

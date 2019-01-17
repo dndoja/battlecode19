@@ -9,10 +9,10 @@ export class BuildingDecisionMaker{
     }
 
     getBuildingDecision() {
-        if (this.robot.me.turn === 1 && false){
+        if (this.robot.me.turn === 1){
             return SPECS.PILGRIM
-        } else if (this.robot.fuel >= 50 && this.robot.karbonite >= CONSTANTS.PILGRIM_KARBONITE_COST){
-            return SPECS.PILGRIM;
+        } else if (this.robot.fuel >= 50 && this.robot.karbonite >= CONSTANTS.PROPHET_KARBONITE_COST){
+            return SPECS.PROPHET;
         }
 
         return null

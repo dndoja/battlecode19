@@ -51,6 +51,13 @@ export function getDistanceBetweenPoints(x1, x2, y1, y2) {
     return dX * dX + dY * dY
 }
 
+export function getDeltaBetweenPoints(a, b) {
+    let dX = b.x - a.x;
+    let dY = b.y - a.y;
+
+    return {dX: dX,dY: dY}
+}
+
 export function fitCoordsInEightBits(robot,map, x, y, symmetry) {
     let detailedCoord;
     let notDetailedCoord;

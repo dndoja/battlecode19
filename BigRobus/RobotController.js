@@ -217,6 +217,10 @@ export default class RobotController {
         return map;
     }
 
+    isPointOnMap(point){
+        return point.x > 0 && point.y > 0 && point.x < this.robot.map.length && point.y < this.robot.map.length
+    }
+
     getFriendlyCombatUnits(){
         let nearbyUnits = this.robot.getVisibleRobots();
 
@@ -231,18 +235,22 @@ export default class RobotController {
         return units
     }
 
-    getFriendlyUnitsOfType(type){
+    getFriendlyUnitsOfType(type) {
         let nearbyUnits = this.robot.getVisibleRobots();
 
         let units = [];
-        for (let i = 0; i < nearbyUnits.length; i++){
+        for (let i = 0; i < nearbyUnits.length; i++) {
             let currentRobot = nearbyUnits[i];
-            if (currentRobot.unit === type && this.robot.me.team === currentRobot.team){
+            if (currentRobot.unit === type && this.robot.me.team === currentRobot.team) {
                 units.push(currentRobot)
             }
         }
 
         return units
+    }
+
+    isRobotFriendly(id){
+        return this.robot.getRobot(id).team === this.robot.me.team
     }
 
     getOffsetsFromRadius(radius,x,y){
@@ -277,7 +285,7 @@ export default class RobotController {
         return enemies
     }
 
-    getCoordinatesFromCastle(){
+    getRadioCoordsFromHomeCastle(){
         let signal = this.getSignalFromCastle();
         let signalBin = signal.toString(2);
         //this.robot.log(signalBin);

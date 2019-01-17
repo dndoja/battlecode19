@@ -16,7 +16,7 @@ export default class Pilgrim extends RobotController{
         this.moves = [];
 
         this.friendlyCastles.push(super.getClosestCastle());
-        let coords = super.getCoordinatesFromCastle();
+        let coords = super.getRadioCoordsFromHomeCastle();
         for (let i = 0; i < coords.length; i++){
             this.friendlyCastles.push(coords[i].x,coords[i].y);
         }*/
@@ -111,8 +111,8 @@ export default class Pilgrim extends RobotController{
             generator.setLimits(this.robot.me.x - RADIUS_MINES, this.robot.me.y - RADIUS_MINES, this.targetMine.x + RADIUS_MINES, this.targetMine.y + RADIUS_MINES);
             generator.addGoal(closestFuelMine.position);
             this.fMap = generator.generateMap();
-            this.robot.log("F:");
-            generator.printMap();
+            //this.robot.log("F:");
+            //generator.printMap();
 
             return
         }
@@ -201,13 +201,26 @@ export default class Pilgrim extends RobotController{
                 let x = this.robot.me.x + offX;
                 let y = this.robot.me.y + offY;
 
-                if (units[y][x] > 0){
+                if (super.isPointOnMap({x:x,y:y}) === true && units[y][x] > 0){
                     let unit = this.robot.getRobot(units[y][x]).unit;
                     if (unit === SPECS.CASTLE || unit === SPECS.CHURCH){
                         return this.robot.give(offX,offY,this.robot.me.karbonite,this.robot.me.fuel);
                     }
                 }
             }
+        }
+    }
+
+    updateEnemyCastlesMap(print){
+        let generator = new DijkstraMapGenerator(this.robot);
+        let goals = [];
+        for  (let i = 0; i < this.enemyCastles.length; i++){
+            goals.push({x:this.enemyCastles[i].x,y:this.enemyCastles[i].y});
+        }
+        generator.addGoals(goals);
+        this.enemyCastlesMap = generator.generateMap();
+        if (print) {
+            generator.printMap();
         }
     }
 
