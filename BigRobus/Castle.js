@@ -35,7 +35,7 @@ export default class Castle extends RobotController{
 
         }
 
-        if (this.willBuildRobots && this.pilgrimCount < this.karbMines) {
+        if (this.pilgrimCount < this.karbMines) {
             let builtRobot = this.buildRobot();
             if (builtRobot) {
                 if (this.pilgrimCount < 255) {

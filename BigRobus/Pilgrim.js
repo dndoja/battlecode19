@@ -31,24 +31,39 @@ export default class Pilgrim extends RobotController{
         this.mineIndex = this.home.signal;
         this.robot.log("M: " + this.mineIndex);
 
-        this.targetMine = this.getTargetMine();
+        this.targetMine = this.getTargetKarboniteMine();
         this.robot.log("tX: " + this.targetMine.x + " tY: "+ this.targetMine.y);
         this.generateTargetMap()
     }
 
-    // TODO Make this target closest mines first
-    getTargetMine(){
-        let offsets = super.getOffsetsFromRadius(10,this.home.x,this.home.y);
+    getTargetKarboniteMine(){
         let skips = this.mineIndex;
-        for (let y = offsets.bottom; y <= offsets.top; y++){
-            for (let x = offsets.left; x <= offsets.right; x++){
-                if (this.robot.karbonite_map[y][x] === true) {
-                    if (skips === 0) {
-                        return {x: x, y: y}
-                    }
-                    skips--
+
+        function checkIfRightMine(map,x, y) {
+            if (map[y][x] === true) {
+                if (skips === 0) {
+                    return true
                 }
+                skips--
             }
+            return false
+        }
+
+        let radius = 1;
+
+        while (radius <= 10) {
+            let offsets = super.getOffsetsFromRadius(radius, this.home.x, this.home.y);
+
+            for (let x = offsets.left; x <= offsets.right; x++) {
+                if (checkIfRightMine(this.robot.karbonite_map, x, offsets.top) === true) return {x: x, y: offsets.top};
+                if (checkIfRightMine(this.robot.karbonite_map, x, offsets.bottom) === true) return {x: x, y: offsets.bottom};
+            }
+
+            for (let y = offsets.bottom; y <= offsets.top; y++) {
+                if (checkIfRightMine(this.robot.karbonite_map, offsets.left, y) === true) return {x: offsets.left, y: y};
+                if (checkIfRightMine(this.robot.karbonite_map, offsets.right, y) === true) return {x: offsets.right, y: y};
+            }
+            radius++;
         }
     }
 
@@ -62,6 +77,7 @@ export default class Pilgrim extends RobotController{
                 if (this.robot.fuel_map[y][x] === true) {
                     let dist = calculateDiagonalDistance(this.robot.me,{x:x,y:y});
                     if (dist < closestDist){
+                        closestDist = dist;
                         closestLoc = {position:{x:x,y:y},distanceTo:dist}
                     }
                 }
@@ -85,7 +101,7 @@ export default class Pilgrim extends RobotController{
         generator.setLimits(this.robot.me.x - RADIUS_MINES, this.robot.me.y - RADIUS_MINES, this.targetMine.x + RADIUS_MINES, this.targetMine.y + RADIUS_MINES);
         generator.addGoal(this.home);
         this.hMap = generator.generateMap();
-        generator.printMap()
+        //generator.printMap()
     }
 
     generateFuelMap(){
@@ -96,7 +112,7 @@ export default class Pilgrim extends RobotController{
             generator.addGoal(closestFuelMine.position);
             this.fMap = generator.generateMap();
             this.robot.log("F:");
-            //generator.printMap();
+            generator.printMap();
 
             return
         }
@@ -116,7 +132,7 @@ export default class Pilgrim extends RobotController{
         }else if (this.isCappedOnFuel() === false){
             if (!this.fMap){ this.generateFuelMap() }
 
-            if (this.hasNearbyFuelMap() === true){
+            if (this.hasNearbyFuelMine() === true){
                 if (this.isOnTargetFuelMine() === true){
                     return this.robot.mine()
                 }else{
@@ -133,7 +149,7 @@ export default class Pilgrim extends RobotController{
         }
     }
 
-    hasNearbyFuelMap(){
+    hasNearbyFuelMine(){
         return this.fMap != null
     }
 
@@ -200,55 +216,4 @@ export default class Pilgrim extends RobotController{
         super.updateRobotObject(robot)
     }
 
-    updateResourcesMap(){
-        let closestKarb = this.getClosestFuelMine(this.robot.karbonite_map);
-        let closestFuel = this.getClosestFuelMine(this.robot.fuel_map);
-
-
-        if (closestKarb){
-            let generator = new DijkstraMapGenerator(this.robot);
-            generator.addGoal(closestKarb);
-            generator.setLimits(this.robot.me.x - 1,this.robot.me.y - 1,closestKarb.x,closestKarb.y);
-            this.kMap = generator.generateMap();
-            //generator.printMap()
-        }
-
-        if (closestFuel){
-            let generator = new DijkstraMapGenerator(this.robot);
-            generator.addGoal(closestFuel);
-            generator.setLimits(this.robot.me.x - 1,this.robot.me.y - 1,closestKarb.x,closestKarb.y);
-            this.fMap = generator.generateMap();
-            //generator.printMap()
-        }
-    }
-
-    updateCastlesMap(print){
-        let generator = new DijkstraMapGenerator(this.robot);
-        let goals = [];
-        for  (let i = 0; i < this.friendlyCastles.length; i++){
-            goals.push({x:this.friendlyCastles[i].x,y:this.friendlyCastles[i].y});
-        }
-        generator.addGoals(goals);
-        this.castlesMap = generator.generateMap();
-        if (print) {
-            //generator.printMap();
-        }
-    }
-
-    createResourcesMap(){
-        let kMap = this.robot.karbonite_map;
-        let goals = [];
-
-        for (let y = 0; y < this.robot.karbonite_map; y++){
-            for (let x = 0; x < this.robot.karbonite_map; x++){
-                if (kMap){
-                    goals.push({x:x,y:y})
-                }
-            }
-        }
-
-        let generator = new DijkstraMapGenerator();
-        generator.addGoals(goals);
-        this.kMap = generator.generateMap();
-    }
 }
