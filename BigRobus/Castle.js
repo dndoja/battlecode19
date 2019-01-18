@@ -3,6 +3,8 @@ import RobotController from "./RobotController.js";
 import {fitCoordsInEightBits, getMapSymmetryType, getCoordsFromEightBits} from "./utils.js";
 import constants from "./constants.js";
 import {BuildingDecisionMaker} from "./BuildingDecisionMaker.js";
+import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
+import ChokepointFinder from "./ChokepointFinder.js";
 
 export default class Castle extends RobotController{
     constructor(robot) {
@@ -14,6 +16,18 @@ export default class Castle extends RobotController{
         this.bi = false;
         this.pilgrimCount = 0;
         this.karbMines = this.getKarboniteMinesNearby().length;
+        let generator = new DijkstraMapGenerator(robot);
+        generator.addGoal(this.getOppositeCastle());
+        generator.generateMap();
+        generator.printMap();
+
+    }
+
+    getChokes(){
+        let chokepointfinder = new ChokepointFinder(this.robot,this.symmetry);
+        chokepointfinder.setLimits({startX:0,startY:0},{endX:this.map.length /2,endY:this.map.length / 2});
+        chokepointfinder.getChokePoints();
+        chokepointfinder.printChokes()
     }
 
     updateRobotObject(robot){
@@ -22,7 +36,7 @@ export default class Castle extends RobotController{
     }
 
     run(){
-        if (this.robot.me.turn <= 2) {
+        /*if (this.robot.me.turn <= 2) {
             this.broadcastCastlePosition();
             this.listenToCastlePositions();
             if (this.robot.me.turn === 1){
@@ -57,7 +71,7 @@ export default class Castle extends RobotController{
 
                 return this.buildRobot(buildingDecision);
             }
-        }
+        }*/
     }
 
 
