@@ -23,7 +23,7 @@ export default class ChokepointFinder {
         if (this.symmetry === CONSTANTS.SYMMETRY_HORIZONTAL){
             for (let x = this.startX; x < this.endX; x++) {
                 this.rows.push({i:x,sections:[]});
-                this.rows[this.rows.length - 1].sections.push({start:-1,end:-1,length:this.map.length});
+                this.rows[this.rows.length - 1].sections.push({start:-1,end:-1,length:-1});
 
                 for (let y = this.startY; y < this.endY; y++) {
                     this.processCoordinate(x, y, y)
@@ -32,7 +32,7 @@ export default class ChokepointFinder {
         }else{
             for (let y = this.startY; y < this.endY; y++){
                 this.rows.push({i:y,sections:[]});
-                this.rows[this.rows.length - 1].sections.push({start:-1,end:this.map.length,length:-1});
+                this.rows[this.rows.length - 1].sections.push({start:-1,end:this.endX,length:-1});
 
                 for (let x = this.startX; x < this.endX; x++){
                     this.processCoordinate(x,y,x)
@@ -46,14 +46,19 @@ export default class ChokepointFinder {
             let lastRow = this.rows[this.rows.length - 1];
             let lastSection = lastRow.sections[lastRow.sections.length - 1];
             if (lastSection.start !== -1){
-                this.rows[this.rows.length - 1].sections.push({start:-1,end:this.map.length,length:-1});
+                if (x === maincoord) {
+                    this.rows[this.rows.length - 1].sections.push({start: -1, end: this.endX, length: -1});
+                }else{
+                    this.rows[this.rows.length - 1].sections.push({start: -1, end: this.endY, length: -1});
+                }
             }
         }else{
             let lastChoke = this.rows[this.rows.length - 1];
             let lastSection = lastChoke.sections[lastChoke.sections.length - 1];
             if (lastSection.start === -1){
                 lastSection.start = maincoord;
-                lastSection.length = lastSection.end - lastSection.start
+                lastSection.length = lastSection.end - lastSection.start;
+                lastSection.end = maincoord;
             }else{
                 lastSection.end = maincoord;
                 lastSection.length = lastSection.end - lastSection.start

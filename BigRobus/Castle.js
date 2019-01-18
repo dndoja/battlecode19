@@ -6,6 +6,8 @@ import {BuildingDecisionMaker} from "./BuildingDecisionMaker.js";
 import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
 import ChokepointFinder from "./ChokepointFinder.js";
 
+const CHOKE_RADIUS = 10;
+
 export default class Castle extends RobotController{
     constructor(robot) {
         super(robot);
@@ -20,14 +22,30 @@ export default class Castle extends RobotController{
         generator.addGoal(this.getOppositeCastle());
         generator.generateMap();
         generator.printMap();
-
+        this.getChokes()
     }
 
     getChokes(){
         let chokepointfinder = new ChokepointFinder(this.robot,this.symmetry);
-        chokepointfinder.setLimits({startX:0,startY:0},{endX:this.map.length /2,endY:this.map.length / 2});
-        chokepointfinder.getChokePoints();
+        if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
+            if (this.robot.me.x < this.robot.map.length / 2){
+                chokepointfinder.setLimits({x:this.robot.me.x,y:0},{x:this.robot.me.x + CHOKE_RADIUS,y:this.robot.map.length});
+            }else{
+                chokepointfinder.setLimits({x:this.robot.me.x - CHOKE_RADIUS,y:0},{x:this.robot.me.x,y:this.robot.map.length});
+            }
+        }else{
+            if (this.robot.me.y < this.robot.map.length / 2){
+                chokepointfinder.setLimits({x:0,y:this.robot.me.y},{x:this.robot.map.length,y:this.robot.me.y + CHOKE_RADIUS});
+            }else{
+                chokepointfinder.setLimits({x:0,y:this.robot.me.y - CHOKE_RADIUS},{x:this.robot.map.length,y:this.robot.me.y});
+            }
+        }
+        this.chokepoints = chokepointfinder.getChokePoints();
         chokepointfinder.printChokes()
+    }
+
+    pickChokeToSendPeople(){
+
     }
 
     updateRobotObject(robot){
