@@ -73,9 +73,9 @@ export default class Prophet extends RobotController{
                 }
             }else{
                 if (point.y > this.robot.me.y){
-                    return 1;
+                    return -1;
                 }else if (point.y < this.robot.me.y){
-                    return -1
+                    return 1
                 }
             }
         }

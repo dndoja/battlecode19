@@ -33,7 +33,6 @@ class MyRobot extends BCAbstractRobot {
                 this.robot.updateRobotObject(this)
             }
             return this.robot.run()
-
         }else if (this.me.unit === SPECS.PILGRIM){
             if(!this.robot) {
                 this.robot = new Pilgrim(this);
