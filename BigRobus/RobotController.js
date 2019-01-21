@@ -24,6 +24,7 @@ export default class RobotController {
         return y * 100 + x;
     }
 
+
     getClosestStructure(team){
         let robots = this.robot.getVisibleRobots();
         let smallestDist = 10000000;
@@ -60,29 +61,29 @@ export default class RobotController {
         return closest;
     }
 
-    moveAlongDijkstraMap(radius){
+    moveAlongDijkstraMap(radius,disallowParallel){
         if (this.djMap){
             if (this.djMap[this.position.y][this.position.x] !== 0) {
                 //this.prioritizeStayingGrouped(this.getFriendlyCombatUnits(),radius);
                 let surroundingNodes = this.getSurroundingNodes(radius);
-                let smallestNodes = this.getSmallestNodes(surroundingNodes);
+                let smallestNodes = this.getSmallestNodes(surroundingNodes,disallowParallel);
 
                 if (smallestNodes.length > 0 && smallestNodes[0][0] !== CONSTANTS.UNPASSABLE_TERRAIN_VALUE) {
-                    for (let i = 0; i < smallestNodes.length; i++) {
-                        let currentNodes = smallestNodes[i];
-                            /*currentNodes.sort(function () {
-                                return Math.random() - 0.5;
-                            });*/
-                            //let randomPick = smallestNodes[Math.floor(Math.random() * smallestNodes.length)];
-                            for (let i = 0; i < currentNodes.length; i++) {
-                                let randomPick = currentNodes[i];
-                                //this.robot.log(smallestNodes.length);
-                                if ((this.position.x !== randomPick.x || this.position.y !== randomPick.y) && this.canMove(randomPick)) {
-                                    return this.getDeltaMovement(randomPick);
-                                }
+                for (let i = 0; i < smallestNodes.length; i++) {
+                    let currentNodes = smallestNodes[i];
+                        /*currentNodes.sort(function () {
+                            return Math.random() - 0.5;
+                        });*/
+                        //let randomPick = smallestNodes[Math.floor(Math.random() * smallestNodes.length)];
+                        for (let i = 0; i < currentNodes.length; i++) {
+                            let randomPick = currentNodes[i];
+                            //this.robot.log(smallestNodes.length);
+                            if ((this.position.x !== randomPick.x || this.position.y !== randomPick.y) && this.canMove(randomPick)) {
+                                return this.getDeltaMovement(randomPick);
                             }
                         }
                     }
+                }
             }
         }
     }
@@ -124,7 +125,7 @@ export default class RobotController {
         return this.robot.map[node.y][node.x] === true && !this.robot.getVisibleRobotMap()[node.y][node.x] > 0;
     }
 
-    getSmallestNodes(nodes){
+    getSmallestNodes(nodes,disallowParallel){
         let sortedNodes = [];
 
         //this.robot.log("Current: " + this.djMap[this.position.y][this.position.x]);
@@ -141,7 +142,7 @@ export default class RobotController {
             }
 
             if (!foundMatch){
-                if (currentNode.value <= this.djMap[this.position.y][this.position.x]) {
+                if ((!disallowParallel && currentNode.value <= this.djMap[this.position.y][this.position.x]) || currentNode.value < this.djMap[this.position.y][this.position.x]) {
                     let newNodes = [];
                     newNodes.push(currentNode);
                     sortedNodes.push(newNodes);

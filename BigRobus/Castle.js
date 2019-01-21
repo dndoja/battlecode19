@@ -9,6 +9,7 @@ import {calculateDiagonalDistance,calculateManhattanDistance} from "./utils.js";
 import PointClusterGenerator from "./PointClusterGenerator.js";
 
 const CHOKE_RADIUS = 10;
+const CHOKE_RADIUS_S = 5;
 
 export default class Castle extends RobotController {
     constructor(robot) {
@@ -21,7 +22,7 @@ export default class Castle extends RobotController {
         this.assignLeft = false;
         this.symmetry = getMapSymmetryType(this.robot.map);
         this.bi = false;
-        this.maxPilgrims = 2;
+        //this.maxPilgrims = 2;
 
         if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
             this.maincoord = this.robot.me.y
@@ -42,7 +43,6 @@ export default class Castle extends RobotController {
         this.getNearbyChokes();
         this.createSurroundingsMap();
         this.orderChokesByProximity();
-        this.getKarboniteClusters()
     }
 
     orderChokesByProximity(index) {
@@ -74,7 +74,7 @@ export default class Castle extends RobotController {
         if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
             this.nearbyChokes[index].sections.sort(orderIfHorizontal);
         } else {
-            this.nearbyChokes[index].sections.sort(orderIfVertical)
+            this.nearbyChokes[index].sections.sort(orderIfVertical);
         }
 
         let str = "";
@@ -110,15 +110,15 @@ export default class Castle extends RobotController {
 
         if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
             if (this.robot.me.x < this.robot.map.length / 2) {
-                chokepointFinder.setLimits({x: mX, y: mY - CHOKE_RADIUS}, {x: mX + CHOKE_RADIUS, y: mY + CHOKE_RADIUS});
+                chokepointFinder.setLimits({x: mX, y: mY - CHOKE_RADIUS_S}, {x: mX + CHOKE_RADIUS, y: mY + CHOKE_RADIUS_S});
             } else {
-                chokepointFinder.setLimits({x: mX - CHOKE_RADIUS, y: mY - CHOKE_RADIUS}, {x: mX, y: mY + CHOKE_RADIUS});
+                chokepointFinder.setLimits({x: mX - CHOKE_RADIUS, y: mY - CHOKE_RADIUS_S}, {x: mX, y: mY + CHOKE_RADIUS_S});
             }
         } else {
             if (this.robot.me.y < this.robot.map.length / 2) {
-                chokepointFinder.setLimits({x: mX - CHOKE_RADIUS, y: mY}, {x: mX + CHOKE_RADIUS, y: mY + CHOKE_RADIUS});
+                chokepointFinder.setLimits({x: mX - CHOKE_RADIUS_S, y: mY}, {x: mX + CHOKE_RADIUS_S, y: mY + CHOKE_RADIUS});
             } else {
-                chokepointFinder.setLimits({x: mX - CHOKE_RADIUS, y: mY - CHOKE_RADIUS}, {x: mX + CHOKE_RADIUS, y: mY});
+                chokepointFinder.setLimits({x: mX - CHOKE_RADIUS_S, y: mY - CHOKE_RADIUS}, {x: mX + CHOKE_RADIUS_S, y: mY});
             }
         }
 
@@ -132,7 +132,7 @@ export default class Castle extends RobotController {
     pickBestChokes(chokepointFinder) {
         let candidates = [];
 
-        for (let a = 2; a < this.chokepoints.length - 1; a++) {
+        for (let a = 5; a < this.chokepoints.length - 1; a++) {
             let currentLane = this.chokepoints[a];
             let nextLane = this.chokepoints[a + 1];
             let intersection = chokepointFinder.intersectRows(currentLane, nextLane);
@@ -160,8 +160,6 @@ export default class Castle extends RobotController {
         this.visibleRobotMap = this.robot.getVisibleRobotMap();
         super.updateRobotObject(robot);
     }
-
-
 
     updateAssignedPositionsMap() {
         let stillAssigned = [];
@@ -195,40 +193,65 @@ export default class Castle extends RobotController {
         this.mostRecentlyAssigned = {x: x, y: y, turnOfAssignment: this.robot.me.turn}
     }
 
-    getCastlePositionPt1(){
+    getCastlePositions(){
         let friendlies = this.robot.getVisibleRobots();
 
-        for (let i =0;i < this.robot.friendlies; i++){
+        for (let i =0;i < friendlies.length; i++){
             if (friendlies[i].id !== this.robot.me.id){
                 let ct = friendlies[i].castle_talk;
-                if (ct > -1){
+                if (ct > 0){
                     if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
-                        this.friendlyCastles.push({x:0,y:ct})
+                        this.friendlyCastles.push(ct)
                     }else{
-                        this.friendlyCastles.push({x:ct,y:0})
+                        this.friendlyCastles.push(ct)
                     }
                 }
+            }
+        }
+
+        if (this.friendlyCastles.length > 1){
+            if (this.friendlyCastles[0] > this.friendlyCastles[1]){
+                let temp = this.friendlyCastles[1];
+                this.friendlyCastles[1] = this.friendlyCastles[0];
+                this.friendlyCastles[0] = temp;
             }
         }
     }
 
-    getCastlePositionPt2(){
-        let friendlies = this.robot.getVisibleRobots();
-        let index = 0;
+    calculateMyTerritory(){
+        if (this.friendlyCastles.length === 0){
+            this.myTerritory = {start:0,end:this.robot.map.length - 1}
+        }else if (this.friendlyCastles.length === 1){
+            let other = this.friendlyCastles[0];
+            let distanceHalved = Math.abs(Math.floor((other - this.maincoord) / 2));
 
-        for (let i =0;i < this.robot.friendlies; i++){
-            if (friendlies[i].id !== this.robot.me.id){
-                let ct = friendlies[i].castle_talk;
-                if (ct > -1){
-                    if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
-                        this.friendlyCastles[index].x = ct
-                    }else{
-                        this.friendlyCastles[index].y = ct
-                    }
-                    index++;
-                }
+            if (other > this.maincoord){
+                this.myTerritory = {start:0,end:other - distanceHalved}
+            }else{
+                this.myTerritory = {start:other + distanceHalved + 1,end:this.robot.map.length - 1}
+            }
+        }else{
+            let me = this.maincoord;
+            if (me < this.friendlyCastles[0]){
+                let other = this.friendlyCastles[0];
+                let distanceHalved = Math.abs(Math.floor((other - this.maincoord) / 2));
+                this.myTerritory = {start:0,end:other - distanceHalved}
+            }else if (me > this.friendlyCastles[0] && me < this.friendlyCastles[1]){
+                let otherLeft = this.friendlyCastles[0];
+                let distanceHalvedLeft = Math.abs(Math.floor((otherLeft - this.maincoord) / 2));
+
+                let otherRight = this.friendlyCastles[1];
+                let distanceHalvedRight = Math.abs(Math.floor((otherRight - this.maincoord) / 2));
+
+                this.myTerritory = {start:otherLeft + distanceHalvedLeft + 1, end: otherRight - distanceHalvedRight}
+            }else{
+                let other = this.friendlyCastles[1];
+                let distanceHalved = Math.abs(Math.floor((other - this.maincoord) / 2));
+                this.myTerritory = {start:other + distanceHalved + 1,end:this.robot.map.length - 1}
             }
         }
+
+        this.robot.log(this.friendlyCastles.length + " | " +this.myTerritory.start + " -> " + this.myTerritory.end)
     }
 
     run() {
@@ -240,24 +263,15 @@ export default class Castle extends RobotController {
             }
         } else if (this.robot.me.turn === 2) {
             if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
-                this.robot.castleTalk(this.robot.me.x)
-            } else {
                 this.robot.castleTalk(this.robot.me.y)
+            } else {
+                this.robot.castleTalk(this.robot.me.x)
             }
-            this.getCastlePositionPt1()
-        } else if (this.robot.me.turn === 3) {
-            this.getCastlePositionPt2();
-            let str = "Friendly castles: ";
-
-            for (let i = 0; i < this.friendlyCastles.length; i++) {
-                str += "(" + this.friendlyCastles[i].x + "," + this.friendlyCastles[i].y + ")"
-            }
-            this.robot.log(str)
+            this.getCastlePositions();
+            this.calculateMyTerritory();
+            this.getKarboniteClusters();
         }
 
-        if (this.robot.me.turn % 20 === 0) {
-            this.maxPilgrims++;
-        }
         this.updateAssignedPositionsMap();
         /*
                 if (this.robot.me.turn <= 2) {
@@ -415,15 +429,13 @@ export default class Castle extends RobotController {
     }
 
     getBuildingDecision() {
-        if (this.pilgrimCount < this.maxPilgrims && this.robot.karbonite >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 50){
+        if (this.robot.me.turn > 1 && this.pilgrimCount < this.maxPilgrims && this.robot.karbonite >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 50){
             this.pilgrimCount++;
             return SPECS.PILGRIM
         }else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST && this.robot.fuel >= 50){
             return SPECS.PROPHET;
         }
         return null
-       // let decisionmaker = new BuildingDecisionMaker(this.robot);
-       // return decisionmaker.getBuildingDecision();
     }
 
     buildRobot(unitToBuild) {
@@ -529,6 +541,8 @@ export default class Castle extends RobotController {
 
     getKarboniteClusters() {
         let karbMines = this.getKarboniteMinesOnMySide();
+        this.maxPilgrims = karbMines.length;
+        this.robot.log("MAX: " + this.maxPilgrims);
         let loc = this.robot.me;
         //this.robot.log("Karb: " + karbMines.length);
         let cGen = new PointClusterGenerator(karbMines,this.robot);
@@ -549,7 +563,7 @@ export default class Castle extends RobotController {
         let limitsBehind = this.getAreaBehindMe();
         //this.robot.log("Limits: " + limitsBehind.start + " -> " + limitsBehind.end);
         if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
-            for (let y = 0; y < this.robot.map.length; y++){
+            for (let y = this.myTerritory.start; y <= this.myTerritory.end; y++){
                 for (let x = limitsBehind.start; x <= limitsBehind.end; x++){
                     if (this.robot.karbonite_map[y][x] === true){
                         karboniteMines.push({x:x,y:y})
@@ -558,7 +572,7 @@ export default class Castle extends RobotController {
             }
         }else{
             for (let y = limitsBehind.start; y <= limitsBehind.end; y++){
-                for (let x = 0; x < this.robot.map.length; x++){
+                for (let x = this.myTerritory.start; x <= this.myTerritory.end; x++){
                     if (this.robot.karbonite_map[y][x] === true) {
                         karboniteMines.push({x: x, y: y})
                     }

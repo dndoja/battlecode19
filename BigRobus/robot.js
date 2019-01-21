@@ -11,6 +11,7 @@ import Preacher from "./Preacher.js";
 import Prophet from "./Prophet.js";
 import Church from "./Church.js";
 
+//SEED: 1 CASTLE SMALL MAP: 1430804081
 
 let turn = -1;
 let generatedMap = false;

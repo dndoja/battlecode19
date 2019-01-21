@@ -13,7 +13,73 @@ export default class Prophet extends RobotController{
         this.home = this.getClosestStructure(this.robot.me.team);
         this.killem = false;
         this.oppositeCastle = getSymmetricNode(this.home.x,this.home.y,this.robot.map,this.symmetry);
-        this.createDefensiveMap()
+        this.createDefensiveMap();
+        this.moveNigga = 0;
+    }
+
+    getBehind(){
+        if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
+            if (this.home.x < this.robot.map.length / 2){
+                return {x:this.robot.me.x - 1,y:this.robot.me.y};
+            }else{
+                return {x:this.robot.me.x + 1,y:this.robot.me.y};
+            }
+        }else if (this.symmetry === constants.SYMMETRY_VERTICAL){
+            if (this.home.y < this.robot.map.length / 2){
+                return {x:this.robot.me.x,y:this.robot.me.y - 1};
+            }else{
+                return {x:this.robot.me.x,y:this.robot.me.y + 1};
+            }
+        }
+    }
+
+    getAhead(){
+        if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
+            if (this.home.x < this.robot.map.length / 2){
+                return {x:this.robot.me.x + 1,y:this.robot.me.y};
+            }else{
+                return {x:this.robot.me.x - 1,y:this.robot.me.y};
+            }
+        }else if (this.symmetry === constants.SYMMETRY_VERTICAL){
+            if (this.home.y < this.robot.map.length / 2){
+                return {x:this.robot.me.x,y:this.robot.me.y + 1};
+            }else{
+                return {x:this.robot.me.x,y:this.robot.me.y - 1};
+            }
+        }
+    }
+
+    isPointAheadOrBehind(point){
+        if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
+            if (this.home.x < this.robot.map.length / 2){
+                if (point.x > this.robot.me.x){
+                    return 1;
+                }else if (point.x < this.robot.me.x){
+                    return -1
+                }
+            }else{
+                if (point.x > this.robot.me.x){
+                    return -1;
+                }else if (point.x < this.robot.me.x){
+                    return 1
+                }
+            }
+        }else if (this.symmetry === constants.SYMMETRY_VERTICAL){
+            if (this.home.y < this.robot.map.length / 2){
+                if (point.y > this.robot.me.y){
+                    return 1;
+                }else if (point.y < this.robot.me.y){
+                    return -1
+                }
+            }else{
+                if (point.y > this.robot.me.y){
+                    return 1;
+                }else if (point.y < this.robot.me.y){
+                    return -1
+                }
+            }
+        }
+        return 0;
     }
 
     createOffensiveMap(){
@@ -50,10 +116,23 @@ export default class Prophet extends RobotController{
         return {friendlies:friendlies,enemies:enemies}
     }
 
+    checkBehind(){
+        const behind = this.getBehind();
+
+        for (let i =0; i < this.nearbyFriendlies.length;i++){
+            if (this.nearbyFriendlies[i].x === behind.x && this.nearbyFriendlies[i].y === behind.y){
+                this.moveNigga++;
+                return
+            }
+        }
+        this.moveNigga = 0;
+    }
+
     run(){
         let robots = this.getNearbyRobotsSplitInTeams();
         this.nearbyEnemies = robots.enemies;
         this.nearbyFriendlies = robots.friendlies;
+        this.checkBehind();
         const robotmap = this.robot.getVisibleRobotMap();
 
         if (this.isOnDefensiveSpot()){
@@ -63,12 +142,10 @@ export default class Prophet extends RobotController{
             return this.attackPriorityEnemy()
         }else if (this.isOnDefensiveSpot() === false && !this.offensiveMap){
             let moved = this.moveToDefensiveSpot();
-            if (this.defensiveMap[this.robot.me.y][this.robot.me.x] === 1 && robotmap[this.defensivePosition.y][this.defensivePosition.x] > 0){
-                this.robot.signal(this.encodeCoordinates(this.defensivePosition),2)
-            }else {
-                return moved
-            }
-        }else if (this.shouldMoveMyAss() === true || this.killem === true){
+
+            return moved
+
+        }else if (this.shouldMoveMyAss() === true){
             if (!this.offensiveMap){this.createOffensiveMap(); this.killem = true}
             return this.moveToOffensiveSpot()
         }
@@ -76,7 +153,14 @@ export default class Prophet extends RobotController{
 
     moveToOffensiveSpot(){
         super.setDijkstraMap(this.offensiveMap);
-        let movement = super.moveAlongDijkstraMap(1);
+        let movement;
+
+        if (this.offensiveMap[this.robot.me.y][this.robot.me.x] === 1) {
+            movement = super.moveAlongDijkstraMap(1);
+        }else {
+            movement = super.moveAlongDijkstraMap(1);
+        }
+
         if (movement) {
             return this.robot.move(movement.dX,movement.dY)
         }
@@ -84,10 +168,26 @@ export default class Prophet extends RobotController{
 
     moveToDefensiveSpot() {
         super.setDijkstraMap(this.defensiveMap);
-        let movement = super.moveAlongDijkstraMap(1);
+        let movement;
+
+        if (this.defensiveMap[this.robot.me.y][this.robot.me.x] === 1) {
+            movement = super.moveAlongDijkstraMap(1, true);
+        }else {
+            movement = super.moveAlongDijkstraMap(1);
+        }
+
         if (movement) {
             return this.robot.move(movement.dX,movement.dY)
         }
+    }
+
+    haveAlliesAdvanced(){
+        for (let i =0; i < this.nearbyFriendlies.length;i++){
+            if (this.isPointAheadOrBehind(this.nearbyFriendlies[i]) === 1){
+                return true;
+            }
+        }
+        return false
     }
 
     isOnDefensiveSpot(){
@@ -134,13 +234,7 @@ export default class Prophet extends RobotController{
     }
 
     shouldMoveMyAss(){
-        for (let i = 0; i < this.nearbyFriendlies.length; i++){
-            let decoded = this.decodeCoords(this.nearbyFriendlies[i].signal);
-            if (decoded.x === this.robot.me.x && decoded.y === this.robot.me.y){
-                return true
-            }
-        }
-        return false;
+        return this.moveNigga > 1 || this.haveAlliesAdvanced() === true;
     }
 
     getRadioedPosition(){

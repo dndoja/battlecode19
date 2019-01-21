@@ -51,37 +51,6 @@ export default class Pilgrim extends RobotController{
         return this.decodeCoords(signal)
     }
 
-    getTargetKarboniteMine(){
-        let skips = this.mineIndex;
-
-        function checkIfRightMine(map,x, y) {
-            if (map[y][x] === true) {
-                if (skips === 0) {
-                    return true
-                }
-                skips--
-            }
-            return false
-        }
-
-        let radius = 1;
-
-        while (radius <= 10) {
-            let offsets = super.getOffsetsFromRadius(radius, this.home.x, this.home.y);
-
-            for (let x = offsets.left; x <= offsets.right; x++) {
-                if (checkIfRightMine(this.robot.karbonite_map, x, offsets.top) === true) return {x: x, y: offsets.top};
-                if (checkIfRightMine(this.robot.karbonite_map, x, offsets.bottom) === true) return {x: x, y: offsets.bottom};
-            }
-
-            for (let y = offsets.bottom; y <= offsets.top; y++) {
-                if (checkIfRightMine(this.robot.karbonite_map, offsets.left, y) === true) return {x: offsets.left, y: y};
-                if (checkIfRightMine(this.robot.karbonite_map, offsets.right, y) === true) return {x: offsets.right, y: y};
-            }
-            radius++;
-        }
-    }
-
     getClosestFuelMine(){
         let offsets = super.getOffsetsFromRadius(10,this.robot.me.x,this.robot.me.y);
         let closestDist = 100000;
@@ -137,12 +106,10 @@ export default class Pilgrim extends RobotController{
         this.fMap = null;
     }
 
-
     run(){
-       this.robot.castle_talk = this.mineIndex;
         let canDeposit = this.depositAtNearestStructure();
         if (canDeposit){
-        //    return canDeposit
+       //     return canDeposit
         }
 
         if (this.canBuildChurch() === true){
@@ -172,9 +139,10 @@ export default class Pilgrim extends RobotController{
         }
     }
 
-
     goHome(){
-        if (!this.hMap){ this.generateHomeMap() }else{
+        if (!this.hMap){
+            this.generateHomeMap()
+        }else{
             this.updateHome()
         }
         if (this.isHome() === true){
@@ -231,15 +199,17 @@ export default class Pilgrim extends RobotController{
     depositAtNearestStructure(){
         let units = this.robot.getVisibleRobotMap();
 
-        for (let offY = -1; offY <= 1; offY++){
-            for (let offX = -1; offX <= 1; offX++){
-                let x = this.robot.me.x + offX;
-                let y = this.robot.me.y + offY;
+        if (this.isCappedOnKarb()) {
+            for (let offY = -1; offY <= 1; offY++) {
+                for (let offX = -1; offX <= 1; offX++) {
+                    let x = this.robot.me.x + offX;
+                    let y = this.robot.me.y + offY;
 
-                if (super.isPointOnMap({x:x,y:y}) === true && units[y][x] > 0){
-                    let unit = this.robot.getRobot(units[y][x]).unit;
-                    if (unit === SPECS.CASTLE || unit === SPECS.CHURCH){
-                        return this.robot.give(offX,offY,this.robot.me.karbonite,this.robot.me.fuel);
+                    if (super.isPointOnMap({x: x, y: y}) === true && units[y][x] > 0) {
+                        let unit = this.robot.getRobot(units[y][x]).unit;
+                        if (unit === SPECS.CASTLE || unit === SPECS.CHURCH) {
+                            return this.robot.give(offX, offY, this.robot.me.karbonite, this.robot.me.fuel);
+                        }
                     }
                 }
             }
@@ -260,7 +230,6 @@ export default class Pilgrim extends RobotController{
             }
         }
     }
-
 
     canBuildChurch(){
         return this.getAmountOfKarboniteNearby() >= 2 && this.robot.karbonite >= 50 && this.robot.fuel >= 200 && this.isThereAStructureNearby() === false
