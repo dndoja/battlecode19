@@ -10,18 +10,12 @@ import PointClusterGenerator from "./PointClusterGenerator.js";
 
 const CHOKE_RADIUS = 10;
 
-export default class Castle extends RobotController {
+export default class Church extends RobotController {
     constructor(robot) {
-        let last = new Date().getTime();
-
         super(robot);
         this.robot = robot;
-        this.willBuildRobots = false;
-        this.castlePositions = [];
         this.assignLeft = false;
         this.symmetry = getMapSymmetryType(this.robot.map);
-        this.bi = false;
-        this.maxPilgrims = 2;
 
         if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
             this.maincoord = this.robot.me.y
@@ -29,20 +23,11 @@ export default class Castle extends RobotController {
             this.maincoord = this.robot.me.x
         }
 
-        this.hasSignaled = false;
-        this.pilgrimCount = 0;
-        this.friendlyCastles = [];
-        this.karbMines = this.getKarboniteMinesNearby().length;
-        this.assignedMines = [];
-        this.friendlyCastleNr = this.robot.getVisibleRobots().length;
-        //let generator = new DijkstraMapGenerator(robot);
-
-        this.oppositeCastle = this.getOppositeCastle();
+        this.visibleRobotMap = this.robot.getVisibleRobotMap();
         this.assignedPositions = [];
         this.getNearbyChokes();
-        this.createSurroundingsMap();
+        //this.createSurroundingsMap();
         this.orderChokesByProximity();
-        this.getKarboniteClusters()
     }
 
     orderChokesByProximity(index) {
@@ -50,7 +35,6 @@ export default class Castle extends RobotController {
             index = 0;
         }
         let offset = this.nearbyChokes[index].offset;
-        let map = this.surroundingsMap;
         let position = this.robot.me;
 
         function orderIfVertical(a, b) {
@@ -62,6 +46,7 @@ export default class Castle extends RobotController {
             return distA - distB
         }
 
+
         function orderIfHorizontal(a, b) {
             let yA = Math.floor((a[1] - a[0]) / 2);
             let yB = Math.floor((b[1] - b[0]) / 2);
@@ -69,6 +54,7 @@ export default class Castle extends RobotController {
             let distA = calculateManhattanDistance(position, {x: offset, y: yA});
             let distB = calculateManhattanDistance(position, {x: offset, y: yB});
             return distA - distB
+
         }
 
         if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
@@ -157,11 +143,12 @@ export default class Castle extends RobotController {
 
     updateRobotObject(robot) {
         this.robot = robot;
-        this.visibleRobotMap = this.robot.getVisibleRobotMap();
         super.updateRobotObject(robot);
     }
 
-
+    encodeCoordinates({x, y}) {
+        return y * 100 + x;
+    }
 
     updateAssignedPositionsMap() {
         let stillAssigned = [];
@@ -232,69 +219,22 @@ export default class Castle extends RobotController {
     }
 
     run() {
-        if (this.robot.me.turn === 1) {
-            if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
-                this.robot.castleTalk(this.robot.me.y)
-            } else {
-                this.robot.castleTalk(this.robot.me.x)
-            }
-        } else if (this.robot.me.turn === 2) {
-            if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
-                this.robot.castleTalk(this.robot.me.x)
-            } else {
-                this.robot.castleTalk(this.robot.me.y)
-            }
-            this.getCastlePositionPt1()
-        } else if (this.robot.me.turn === 3) {
-            this.getCastlePositionPt2();
-            let str = "Friendly castles: ";
-
-            for (let i = 0; i < this.friendlyCastles.length; i++) {
-                str += "(" + this.friendlyCastles[i].x + "," + this.friendlyCastles[i].y + ")"
-            }
-            this.robot.log(str)
-        }
-
-        if (this.robot.me.turn % 20 === 0) {
-            this.maxPilgrims++;
-        }
         this.updateAssignedPositionsMap();
-        /*
-                if (this.robot.me.turn <= 2) {
-                    this.broadcastCastlePosition();
-                    this.listenToCastlePositions();
-                    if (this.robot.me.turn === 1) {
-                        if (this.castlePositions.length === 0 || this.robot.getVisibleRobots().length === 1) {
-                            this.willBuildRobots = true;
-                        }
-                    }
-                }*/
+        let buildingDecision = this.getBuildingDecision();
 
-        if (this.willBuildRobots === true || true) {
-            let buildingDecision = this.getBuildingDecision();
-
-            if (buildingDecision) {
-                if (buildingDecision === SPECS.PILGRIM) {
-                    let mine = this.getKarboniteMineToAssign();
-                    if (mine) {
-                        this.robot.signal(this.encodeCoordinates(mine), 2);
-                        this.assignKarboniteMine(mine);
-                    } else {
-                        return
-                    }
-                    /* if (this.pilgrimCount < 255) {
-                         this.robot.signal(this.pilgrimCount, 2);
-                         this.pilgrimCount++;
-                     }*/
-                } else if (buildingDecision === SPECS.PROPHET) {
-                    this.broadcastDefensivePosition();
+        if (buildingDecision) {
+            if (buildingDecision === SPECS.PROPHET || buildingDecision === SPECS.PREACHER) {
+                if (this.broadcastDefensivePosition() === false) {
+                    return
                 }
-                return this.buildRobot(buildingDecision);
             }
+
+            return this.buildRobot(buildingDecision);
         }
+
     }
 
-    broadcastDefensivePosition(){
+    broadcastDefensivePosition() {
         let position = this.getPositionToAssign();
         if (position) {
             this.assignPosition(position.x, position.y);
@@ -310,57 +250,48 @@ export default class Castle extends RobotController {
         let choke = this.nearbyChokes[0];
         let offset = choke.offset;
         let sections = choke.sections;
-        let firstLoc;
 
         for (let i = 0; i < sections.length; i++) {
             let section = sections[i];
             let pivot = this.getIterationPivot(section, offset);
             //this.robot.log("Pivot: " + pivot + " [" + section[0] + "," + section[1] + "]");
+
             if (this.assignLeft === true) {
                 for (let a = pivot; a >= section[0]; a--) {
-                    let loc = this.assignOffsetToProperCoord(a,offset);
-                    if (this.isLocationUnassigned(loc.x,loc.y) === true){
-                        return loc;
-                    }else if (!firstLoc){
-                        firstLoc = loc;
+                    let thing = this.isLocationUnassigned(a, offset);
+                    if (thing) {
+                        return thing
                     }
                 }
 
                 for (let a = pivot; a <= section[1]; a++) {
-                    let loc = this.assignOffsetToProperCoord(a,offset);
-                    if (this.isLocationUnassigned(loc.x,loc.y) === true){
-                        return loc;
-                    }else if (!firstLoc){
-                        firstLoc = loc;
+                    let thing = this.isLocationUnassigned(a, offset);
+                    if (thing) {
+                        return thing
                     }
                 }
 
                 this.assignLeft = false
             } else {
                 for (let a = pivot; a <= section[1]; a++) {
-                    let loc = this.assignOffsetToProperCoord(a,offset);
-                    if (this.isLocationUnassigned(loc.x,loc.y) === true){
-                        return loc;
-                    }else if (!firstLoc){
-                        firstLoc = loc;
+                    let thing = this.isLocationUnassigned(a, offset);
+                    if (thing) {
+                        return thing
                     }
                 }
                 for (let a = pivot; a >= section[0]; a--) {
-                    let loc = this.assignOffsetToProperCoord(a,offset);
-                    if (this.isLocationUnassigned(loc.x,loc.y) === true){
-                        return loc;
-                    }else if (!firstLoc){
-                        firstLoc = loc;
+                    let thing = this.isLocationUnassigned(a, offset);
+                    if (thing) {
+                        return thing
                     }
                 }
 
                 this.assignLeft = true
             }
         }
-        return firstLoc;
     }
 
-    assignOffsetToProperCoord(a,offset){
+    isLocationUnassigned(a, offset) {
         let x, y;
         if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
             x = offset;
@@ -370,15 +301,10 @@ export default class Castle extends RobotController {
             y = offset;
         }
 
-        return {x:x,y:y}
-    }
-
-    isLocationUnassigned(x, y) {
         if (!this.isAUnitStationedInPosition(x, y) && !this.isPositionAssigned(x, y)) {
             //this.robot.log("Assign: " + "(" + x + "," + y + ")");
-            return true
+            return {x: x, y: y}
         }
-        return false
     }
 
     getIterationPivot(section, offset) {
@@ -415,15 +341,13 @@ export default class Castle extends RobotController {
     }
 
     getBuildingDecision() {
-        if (this.pilgrimCount < this.maxPilgrims && this.robot.karbonite >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 50){
-            this.pilgrimCount++;
-            return SPECS.PILGRIM
-        }else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST && this.robot.fuel >= 50){
-            return SPECS.PROPHET;
+        if (this.robot.fuel >= 50) {
+            if (Math.random() > 0.5 && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST) {
+                return SPECS.PREACHER;
+            } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST) {
+                return SPECS.PROPHET
+            }
         }
-        return null
-       // let decisionmaker = new BuildingDecisionMaker(this.robot);
-       // return decisionmaker.getBuildingDecision();
     }
 
     buildRobot(unitToBuild) {
@@ -472,7 +396,7 @@ export default class Castle extends RobotController {
         let bits = fitCoordsInEightBits(this.robot, this.robot.map, castle.x, castle.y, this.symmetry);
         let broadcastValue = parseInt(bits, 2);
         //this.robot.log(broadcastValue.toString());
-        this.robot.castleTalk(broadcastValue)
+        //this.robot.castleTalk(broadcastValue)
     }
 
     getOppositeCastle() {

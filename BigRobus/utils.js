@@ -133,3 +133,10 @@ export function calculateDiagonalDistance(current, goal) {
 
     return Math.max(absX,absY)
 }
+
+export function calculateManhattanDistance(current,goal) {
+    let absX = Math.abs(current.x - goal.x);
+    let absY = Math.abs(current.y - goal.y);
+
+    return absX + absY
+}

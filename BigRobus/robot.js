@@ -9,6 +9,7 @@ import Pilgrim from "./Pilgrim.js";
 import PointClusterGenerator from "./PointClusterGenerator.js";
 import Preacher from "./Preacher.js";
 import Prophet from "./Prophet.js";
+import Church from "./Church.js";
 
 
 let turn = -1;
@@ -46,6 +47,12 @@ class MyRobot extends BCAbstractRobot {
                 this.robot.updateRobotObject(this)
             }
             return this.robot.run()
+        }else if (this.me.unit === SPECS.CHURCH){
+            if(!this.robot) {
+                this.robot = new Church(this);
+            }else{
+                this.robot.updateRobotObject(this)
+            }
         }
     }
 }

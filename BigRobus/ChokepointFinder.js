@@ -17,6 +17,7 @@ export default class ChokepointFinder {
         this.startY = start.y > 0 ? start.y : 0;
         this.endX = end.x > this.robot.map.length ? this.robot.map.length : end.x;
         this.endY = end.y > this.robot.map.length ? this.robot.map.length : end.y;
+        //this.robot.log("startX: " + this.startX + " startY: " + this.startY + " endX: " + this.endX + " endY: " + this.endY)
     }
 
     getChokePoints(){
@@ -39,6 +40,7 @@ export default class ChokepointFinder {
                 }
             }
         }
+        return this.rows
     }
 
     processCoordinate(x,y,maincoord) {
@@ -65,6 +67,74 @@ export default class ChokepointFinder {
             }
             //this.rows[this.rows.length - 1].sections[this.rows[this.rows.length - 1].length - 1] = lastSection;
         }
+    }
+
+    intersectRows(firstRow,secondRow,print){
+        let a = firstRow.sections;
+        let b = secondRow.sections;
+
+        if (print) {
+            let str = "1. ";
+            for (let i = 0; i < a.length; i++) {
+                str += "[" + a[i].start + "," + a[i].end + "]"
+            }
+            this.robot.log(str + " | " + firstRow.i);
+
+            str = "2. ";
+            for (let i = 0; i < b.length; i++) {
+                str += "[" + b[i].start + "," + b[i].end + "]"
+            }
+            this.robot.log(str + " | " + secondRow.i);
+        }
+
+        let ranges = [];
+        let i =  0;
+        let j = 0;
+
+        function sortNumbers(x,y) {
+            return x - y
+        }
+
+        while (i < a.length && j < b.length) {
+            let a_left = a[i].start;
+            let a_right = a[i].end;
+            let b_left = b[j].start;
+            let b_right = b[j].end;
+
+            if (a_right < b_right) {
+                i += 1
+            }
+            else {
+                j += 1
+            }
+
+            if (a_right >= b_left && b_right >= a_left) {
+                let end_pts = [a_left, a_right, b_left, b_right].sort(sortNumbers);
+
+                let middle = [end_pts[1], end_pts[2]];
+                ranges.push(middle)
+            }
+            let ri = 0;
+
+                while (ri < ranges.length - 1) {
+                    if (ranges[ri][1] === ranges[ri + 1][0]){
+                        ranges[ri] = [[ranges[ri][0], ranges[ri+1][1]]];
+                        ranges[ri + 1] = [[ranges[ri][0], ranges[ri+1][1]]];
+                    }
+                    ri += 1
+                }
+        }
+
+        if (print) {
+            let str = "R: ";
+            for (let i = 0; i < ranges.length; i++) {
+                str += "[" + ranges[i][0] + "," + ranges[i][1] + "]"
+            }
+            this.robot.log(str);
+            this.robot.log("______________________");
+        }
+
+        return ranges
     }
 
     printChokes(){

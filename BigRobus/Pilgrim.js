@@ -21,6 +21,7 @@ export default class Pilgrim extends RobotController{
             this.friendlyCastles.push(coords[i].x,coords[i].y);
         }*/
 
+
         this.init()
         //this.updateCastlesMap();
         //this.updateResourcesMap()
@@ -29,11 +30,25 @@ export default class Pilgrim extends RobotController{
     init(){
         this.home = super.getClosestStructure(this.robot.me.team);
         this.mineIndex = this.home.signal;
-        this.robot.log("M: " + this.mineIndex);
+       // this.robot.log("M: " + this.mineIndex);
 
-        this.targetMine = this.getTargetKarboniteMine();
-        this.robot.log("tX: " + this.targetMine.x + " tY: "+ this.targetMine.y);
+        this.targetMine = this.getRadioedMinePosition();
         this.generateTargetMap()
+    }
+
+    decodeCoords(encoded){
+        let x = encoded % 100;
+        let y = Math.floor(encoded / 100);
+        return {x:x,y:y}
+    }
+
+    getRadioedMinePosition(){
+        let castle = super.getClosestCastle();
+        let robotmap = this.robot.getVisibleRobotMap();
+        let id = robotmap[castle.y][castle.x];
+        let signal = this.robot.getRobot(id).signal;
+        //this.robot.log("sig: " + signal);
+        return this.decodeCoords(signal)
     }
 
     getTargetKarboniteMine(){
@@ -68,7 +83,7 @@ export default class Pilgrim extends RobotController{
     }
 
     getClosestFuelMine(){
-        let offsets = super.getOffsetsFromRadius(10,this.home.x,this.home.y);
+        let offsets = super.getOffsetsFromRadius(10,this.robot.me.x,this.robot.me.y);
         let closestDist = 100000;
         let closestLoc;
 
@@ -89,7 +104,8 @@ export default class Pilgrim extends RobotController{
 
     generateTargetMap(){
         let generator = new DijkstraMapGenerator(this.robot);
-        generator.setLimits(this.home.x - RADIUS_MINES, this.home.y - RADIUS_MINES, this.targetMine.x + RADIUS_MINES, this.targetMine.y + RADIUS_MINES);
+        let distance = Math.floor(Math.max(Math.abs(this.targetMine.x - this.home.x), Math.abs(this.targetMine.y - this.home.y))) + RADIUS_MINES;
+        generator.setLimits(this.home.x - distance, this.home.y - distance, this.targetMine.x + distance, this.targetMine.y + distance);
         generator.addGoal(this.targetMine);
         this.kMap = generator.generateMap();
         //this.robot.log("K:");
@@ -98,7 +114,8 @@ export default class Pilgrim extends RobotController{
 
     generateHomeMap(){
         let generator = new DijkstraMapGenerator(this.robot);
-        generator.setLimits(this.robot.me.x - RADIUS_MINES, this.robot.me.y - RADIUS_MINES, this.targetMine.x + RADIUS_MINES, this.targetMine.y + RADIUS_MINES);
+        let distance = Math.floor(Math.max(Math.abs(this.robot.me.x - this.home.x), Math.abs(this.robot.me.y - this.home.y))) + RADIUS_MINES;
+        generator.setLimits(this.robot.me.x - distance, this.robot.me.y - distance, this.home.x + distance, this.home.y + distance);
         generator.addGoal(this.home);
         this.hMap = generator.generateMap();
         //generator.printMap()
@@ -108,7 +125,7 @@ export default class Pilgrim extends RobotController{
         let closestFuelMine = this.getClosestFuelMine();
         if (closestFuelMine.distanceTo <= MAX_DIST_TO_FUEL){
             let generator = new DijkstraMapGenerator(this.robot);
-            generator.setLimits(this.robot.me.x - RADIUS_MINES, this.robot.me.y - RADIUS_MINES, this.targetMine.x + RADIUS_MINES, this.targetMine.y + RADIUS_MINES);
+            generator.setLimits(this.robot.me.x - RADIUS_MINES, this.robot.me.y - RADIUS_MINES, closestFuelMine.position.x + RADIUS_MINES, closestFuelMine.position.y + RADIUS_MINES);
             generator.addGoal(closestFuelMine.position);
             this.fMap = generator.generateMap();
             //this.robot.log("F:");
@@ -120,8 +137,17 @@ export default class Pilgrim extends RobotController{
         this.fMap = null;
     }
 
+
     run(){
-        this.robot.castle_talk = this.mineIndex;
+       this.robot.castle_talk = this.mineIndex;
+        let canDeposit = this.depositAtNearestStructure();
+        if (canDeposit){
+        //    return canDeposit
+        }
+
+        if (this.canBuildChurch() === true){
+            return this.buildChurch();
+        }
 
         if (this.isCappedOnKarb() === false){
             if (this.isOnTargetKarboniteMine() === true){
@@ -138,14 +164,23 @@ export default class Pilgrim extends RobotController{
                 }else{
                     return this.moveTowardsFuelMine()
                 }
+            }else {
+                return this.goHome();
             }
         }else{
-            if (!this.hMap){ this.generateHomeMap() }
-            if (this.isHome() === true){
-                return this.depositAtNearestStructure()
-            }else{
-                return this.moveTowardsHome()
-            }
+            return this.goHome();
+        }
+    }
+
+
+    goHome(){
+        if (!this.hMap){ this.generateHomeMap() }else{
+            this.updateHome()
+        }
+        if (this.isHome() === true){
+            return this.depositAtNearestStructure()
+        }else{
+            return this.moveTowardsHome()
         }
     }
 
@@ -211,16 +246,48 @@ export default class Pilgrim extends RobotController{
         }
     }
 
-    updateEnemyCastlesMap(print){
-        let generator = new DijkstraMapGenerator(this.robot);
-        let goals = [];
-        for  (let i = 0; i < this.enemyCastles.length; i++){
-            goals.push({x:this.enemyCastles[i].x,y:this.enemyCastles[i].y});
+    buildChurch(){
+        for (let i = -1; i <= 1; i++){
+            for (let a = -1; a <= 1; a++){
+                if (a !== 0 || i !== 0){
+                    let y = this.robot.me.y + i;
+                    let x = this.robot.me.x + a;
+
+                    if (super.isPointOnMap({x:x,y:y}) === true && this.robot.karbonite_map[y][x] === false && this.robot.fuel_map[y][x] === false && this.robot.map[y][x] === true){
+                        return this.robot.buildUnit(SPECS.CHURCH,a,i);
+                    }
+                }
+            }
         }
-        generator.addGoals(goals);
-        this.enemyCastlesMap = generator.generateMap();
-        if (print) {
-            generator.printMap();
+    }
+
+
+    canBuildChurch(){
+        return this.getAmountOfKarboniteNearby() >= 2 && this.robot.karbonite >= 50 && this.robot.fuel >= 200 && this.isThereAStructureNearby() === false
+    }
+
+    isThereAStructureNearby(){
+        return super.getClosestStructure(this.robot.me.team) !== undefined
+    }
+
+    getAmountOfKarboniteNearby(){
+        let offsets = super.getOffsetsFromRadius(5,this.robot.me.x,this.robot.me.y);
+        let karbMines = 0;
+        for (let y = offsets.bottom; y <= offsets.top; y++){
+            for (let x = offsets.left; x <= offsets.right; x++){
+                if (this.robot.karbonite_map[y][x] === true) {
+                    karbMines++
+                }
+            }
+        }
+        return karbMines
+    }
+
+    updateHome(){
+        let structure = super.getClosestStructure(this.robot.me.team);
+        if (structure){
+            this.home = structure;
+            this.generateHomeMap();
         }
     }
 

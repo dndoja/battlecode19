@@ -20,6 +20,10 @@ export default class RobotController {
         this.position = {x: robot.me.x, y: robot.me.y};
     }
 
+    encodeCoordinates({x, y}) {
+        return y * 100 + x;
+    }
+
     getClosestStructure(team){
         let robots = this.robot.getVisibleRobots();
         let smallestDist = 10000000;
@@ -137,7 +141,7 @@ export default class RobotController {
             }
 
             if (!foundMatch){
-                if (currentNode.value < this.djMap[this.position.y][this.position.x]) {
+                if (currentNode.value <= this.djMap[this.position.y][this.position.x]) {
                     let newNodes = [];
                     newNodes.push(currentNode);
                     sortedNodes.push(newNodes);
@@ -147,23 +151,18 @@ export default class RobotController {
 
         //sortedNodes.reverse();
         sortedNodes.sort(function (a,b) {
-            if (a[0] === b[0]) {
-                return 0;
-            }
-            else {
-                return (a[0] < b[0]) ? -1 : 1;
-            }
+            return a[0].value - b[0].value
         });
 
-        for (let y = 0; y < sortedNodes.length; y++){
+        /*for (let y = 0; y < sortedNodes.length; y++){
             let n = sortedNodes[y];
             let str = "";
             for (let x = 0; x < n.length; x++){
                 str += (n[x].value + " ")
             }
-            //this.robot.log(str)
-        }
-
+            this.robot.log(str)
+        }*/
+        //this.robot.log(sortedNodes);
         return sortedNodes;
     }
 
