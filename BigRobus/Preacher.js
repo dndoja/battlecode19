@@ -45,23 +45,6 @@ export default class Preacher extends RobotController{
         }
     }
 
-    getNearbyRobotsSplitInTeams(){
-        let robots = this.robot.getVisibleRobots();
-        let friendlies = [];
-        let enemies = [];
-        let myteam = this.robot.me.team;
-
-        for (let i = 0; i < robots.length; i++){
-            if (robots[i].team === myteam){
-                friendlies.push(robots[i])
-            }else{
-                enemies.push(robots[i])
-            }
-        }
-
-        return {friendlies:friendlies,enemies:enemies}
-    }
-
     run(){
         let robots = this.getNearbyRobotsSplitInTeams();
         this.nearbyEnemies = robots.enemies;
@@ -76,6 +59,8 @@ export default class Preacher extends RobotController{
             return this.moveToEnemyCastles();
         }
     }
+
+
 
     moveToEnemyCastles(){
         super.setDijkstraMap(this.enemyCastlesMap);

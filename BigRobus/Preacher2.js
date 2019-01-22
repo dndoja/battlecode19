@@ -1,10 +1,12 @@
 import {SPECS,BCAbstractRobot} from 'battlecode';
 import RobotController from "./RobotController.js";
-import {calculateDiagonalDistance,getDeltaBetweenPoints,getMapSymmetryType,getSymmetricNode,calculateManhattanDistance} from "./utils.js";
-import constants from "./constants.js";
+import PointClusterGenerator from "./PointClusterGenerator.js";
+import {getDeltaBetweenPoints, getDistanceBetweenPoints, getSymmetricNode} from "./utils.js";
 import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
+import {calculateDiagonalDistance, calculateManhattanDistance, getMapSymmetryType} from "./utils.js";
+import constants from "./constants.js";
 
-export default class Prophet extends RobotController{
+export default class Preacher extends RobotController{
 
     constructor(robot) {
         super(robot);
@@ -142,23 +144,60 @@ export default class Prophet extends RobotController{
         }
 
         if (this.hasNearbyEnemies() === true){
-            let enemy = this.getPriorityEnemy();
-            if (enemy) {
-                if ((!this.pastEnemy || this.pastEnemy.enemy.id !== enemy.enemy.id) && enemy.distance * enemy.distance === 64) {
-                    this.pastEnemy = enemy;
-                    this.robot.signal(this.encodeCoordinates(enemy.enemy), 25)
-                }
-
-                return this.attack(enemy.enemy)
-            }
+            this.generateEnemyClusters();
+            return this.attackBestCluster();
         }else if (this.isOnDefensiveSpot() === false && !this.offensiveMap){
             let moved = this.moveToDefensiveSpot();
-
             return moved
+
         }else if (this.shouldMoveMyAss() === true){
             if (!this.offensiveMap){this.createOffensiveMap();}
             return this.moveToOffensiveSpot()
         }
+    }
+
+    attackBestCluster(){
+        for (let i = 0; i < this.enemyClusters.length; i++){
+            let cluster = this.enemyClusters[i];
+            let bOnB = this.calculateBlueOnBlue(i);
+
+            if (this.areCasualtiesWorthTaking(cluster,bOnB)){
+                let delta = getDeltaBetweenPoints(this.robot.me,cluster.centroid);
+                return this.robot.attack(delta.dX,delta.dY)
+            }
+        }
+    }
+
+    areCasualtiesWorthTaking(enemyCluster,friendlies){
+        return enemyCluster.points.length / friendlies >= 3
+    }
+
+    calculateBlueOnBlue(clusterIndex){
+        let robots = this.robot.getVisibleRobotMap();
+        let casualties = 0;
+        for (let offY = -1; offY <= 1; offY++){
+            for (let offX = -1; offX <= 1; offX++){
+                let x = this.enemyClusters[clusterIndex].centroid.x + offX;
+                let y = this.enemyClusters[clusterIndex].centroid.y + offY;
+
+                if (super.isPointOnMap({x:x,y:y}) && robots[y][x] > 0 && super.isRobotFriendly(robots[y][x])){
+                    casualties++;
+                }
+            }
+        }
+
+        return casualties;
+    }
+
+    areEnemiesStacked(){
+        return this.enemyClusters[0].points.length > 1
+    }
+
+    generateEnemyClusters(){
+        let clusterGen = new PointClusterGenerator(this.nearbyEnemies,this.robot);
+        clusterGen.setClusterRadius(1);
+        this.enemyClusters = clusterGen.generateClusters();
+        //clusterGen.printClusters()
     }
 
     moveAlongOffensiveMap(radius, disallowParallel){
@@ -195,49 +234,25 @@ export default class Prophet extends RobotController{
         }
     }
 
-    isMyLineEngaged(){
-        if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
-            for (let i = -2; i <= 2; i++){
-                let y = this.robot.me.y + i;
-                let x = this.robot.me.x;
-                if (this.robotmap[y][x] > 0){
-                    const robot = this.robot.getRobot(this.robotmap[y][x]);
-                    if (robot.signal > 0){
-                        return true;
-                    }
-                }
-            }
-        }else{
-            for (let i = -2; i <= 2; i++){
-                let y = this.robot.me.y;
-                let x = this.robot.me.x+ i;
-                if (this.robotmap[y][x] > 0){
-                    const robot = this.robot.getRobot(this.robotmap[y][x]);
-                    if (robot.signal > 0){
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false
-    }
-
     getLineInFront(){
         const front = this.getAhead();
         let robotsInFront = [];
         if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
             for (let i = -2; i <= 2; i++){
                 let y = front.y + i;
-                if (this.robotmap[y][front.x] > 0){
-                    robotsInFront.push({x:front.x,y:y})
+                if (this.isPointOnMap({x:front.x,y:y}) === true) {
+                    if (this.robotmap[y][front.x] > 0) {
+                        robotsInFront.push({x: front.x, y: y})
+                    }
                 }
             }
         }else{
             for (let i = -2; i <= 2; i++){
                 let x = front.x + i;
-                if (this.robotmap[front.y][x] > 0){
-                    robotsInFront.push({x:x,y:front.y})
+                if (this.isPointOnMap({x:x,y:front.y})) {
+                    if (this.robotmap[front.y][x] > 0) {
+                        robotsInFront.push({x: x, y: front.y})
+                    }
                 }
             }
         }
@@ -282,11 +297,6 @@ export default class Prophet extends RobotController{
         return this.defensiveMap[this.robot.me.y][this.robot.me.x] === 0
     }
 
-    attack(enemy){
-        let delta = getDeltaBetweenPoints(this.robot.me, enemy);
-        return this.robot.attack(delta.dX, delta.dY)
-    }
-
     attackPriorityEnemy() {
         let priorityEnemy = this.getPriorityEnemy();
         if (priorityEnemy) {
@@ -313,9 +323,7 @@ export default class Prophet extends RobotController{
             }
         }
 
-        if (closestEnemy) {
-            return {enemy: closestEnemy, distance: closestDistance}
-        }
+        return closestEnemy
     }
 
     hasNearbyEnemies(){
@@ -330,7 +338,7 @@ export default class Prophet extends RobotController{
 
     shouldMoveMyAss(){
         let frontLine = this.getLineInFront();
-        return this.moveNigga > 2 || (this.haveAlliesAdvanced() === true && frontLine.length <= 5) || this.isMyLineEngaged() === true;
+        return this.moveNigga > 2 || (this.haveAlliesAdvanced() === true && frontLine.length <= 5);
     }
 
     getRadioedPosition(){

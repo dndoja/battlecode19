@@ -12,7 +12,7 @@ export default class RobotController {
     }
 
     setDijkstraMap(djMap){
-        this.djMap = djMap
+        this.djMap = djMap;
     }
 
     updateRobotObject(robot){
@@ -23,7 +23,6 @@ export default class RobotController {
     encodeCoordinates({x, y}) {
         return y * 100 + x;
     }
-
 
     getClosestStructure(team){
         let robots = this.robot.getVisibleRobots();
@@ -59,6 +58,23 @@ export default class RobotController {
         }
 
         return closest;
+    }
+
+    getNearbyRobotsSplitInTeams(){
+        let robots = this.robot.getVisibleRobots();
+        let friendlies = [];
+        let enemies = [];
+        let myteam = this.robot.me.team;
+
+        for (let i = 0; i < robots.length; i++){
+            if (robots[i].team === myteam){
+                friendlies.push(robots[i])
+            }else{
+                enemies.push(robots[i])
+            }
+        }
+
+        return {friendlies:friendlies,enemies:enemies}
     }
 
     moveAlongDijkstraMap(radius,disallowParallel){

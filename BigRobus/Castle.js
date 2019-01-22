@@ -300,7 +300,7 @@ export default class Castle extends RobotController {
                          this.robot.signal(this.pilgrimCount, 2);
                          this.pilgrimCount++;
                      }*/
-                } else if (buildingDecision === SPECS.PROPHET) {
+                } else if (buildingDecision === SPECS.PREACHER || buildingDecision === SPECS.PROPHET) {
                     this.broadcastDefensivePosition();
                 }
                 return this.buildRobot(buildingDecision);
@@ -432,10 +432,11 @@ export default class Castle extends RobotController {
         if (this.robot.me.turn > 1 && this.pilgrimCount < this.maxPilgrims && this.robot.karbonite >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 50){
             this.pilgrimCount++;
             return SPECS.PILGRIM
+        }else if (Math.random() > 0.5 && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50){
+            return SPECS.PREACHER;
         }else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST && this.robot.fuel >= 50){
-            return SPECS.PROPHET;
-        }
-        return null
+            return SPECS.PROPHET}
+
     }
 
     buildRobot(unitToBuild) {

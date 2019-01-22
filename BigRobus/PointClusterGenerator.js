@@ -29,7 +29,7 @@ export default class PointClusterGenerator {
             }
 
             if (foundCluster === false){
-                clusters.push({points:[point],centroid:point})
+                clusters.push({points:[point],centroid:point});
             }
         }
 
@@ -37,9 +37,9 @@ export default class PointClusterGenerator {
            if (a.points.length > b.points.length){
                return -1;
            }else if (a.points.length < b.points.length){
-               return 1
+               return 1;
            }else{
-               return 0
+               return 0;
            }
         });
         this.clusters = clusters;
