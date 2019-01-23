@@ -1,8 +1,7 @@
 import {SPECS,BCAbstractRobot} from 'battlecode';
 import RobotController from "./RobotController.js";
-import {fitCoordsInEightBits, getMapSymmetryType, getCoordsFromEightBits} from "./utils.js";
+import {fitCoordsInEightBits, getMapSymmetryType, getCoordsFromEightBits, getSymmetricNode} from "./utils.js";
 import constants from "./constants.js";
-import {BuildingDecisionMaker} from "./BuildingDecisionMaker.js";
 import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
 import ChokepointFinder from "./ChokepointFinder.js";
 import {calculateDiagonalDistance,calculateManhattanDistance} from "./utils.js";
@@ -13,8 +12,6 @@ const CHOKE_RADIUS_S = 5;
 
 export default class Castle extends RobotController {
     constructor(robot) {
-        let last = new Date().getTime();
-
         super(robot);
         this.robot = robot;
         this.willBuildRobots = false;
@@ -22,7 +19,6 @@ export default class Castle extends RobotController {
         this.assignLeft = false;
         this.symmetry = getMapSymmetryType(this.robot.map);
         this.bi = false;
-        //this.maxPilgrims = 2;
 
         if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
             this.maincoord = this.robot.me.y
@@ -32,14 +28,17 @@ export default class Castle extends RobotController {
 
         this.hasSignaled = false;
         this.pilgrimCount = 0;
+        this.friendlyCastlesIds = [];
+        this.friendlyCastlesMain = [];
+        this.friendlyCastlesSecondary = [];
         this.friendlyCastles = [];
         this.karbMines = this.getKarboniteMinesNearby().length;
         this.assignedMines = [];
         this.friendlyCastleNr = this.robot.getVisibleRobots().length;
-        //let generator = new DijkstraMapGenerator(robot);
-
         this.oppositeCastle = this.getOppositeCastle();
         this.assignedPositions = [];
+        this.enemyCastles = [];
+
         this.getNearbyChokes();
         this.createSurroundingsMap();
         this.orderChokesByProximity();
@@ -50,7 +49,6 @@ export default class Castle extends RobotController {
             index = 0;
         }
         let offset = this.nearbyChokes[index].offset;
-        let map = this.surroundingsMap;
         let position = this.robot.me;
 
         function orderIfVertical(a, b) {
@@ -145,14 +143,6 @@ export default class Castle extends RobotController {
 
         candidates.sort(this.compareIntersections);
         this.nearbyChokes = candidates
-        /*for (let i = 0; i < candidates.length;i++){
-            this.robot.log("Passable tiles: " + candidates[i].passableTiles + " Offset: " + candidates[i].offset);
-            let str = "";
-            for (let a = 0; a < candidates[i].sections.length;a++){
-                str += "[" + candidates[i].sections[a][0] + "," + candidates[i].sections[a][1] + "]"
-            }
-            this.robot.log(str)
-        }*/
     }
 
     updateRobotObject(robot) {
@@ -181,7 +171,7 @@ export default class Castle extends RobotController {
 
         if (id > 0) {
             let robot = this.robot.getRobot(id);
-            if (robot.castle_talk === 1) {
+            if (robot.castle_talk === 255) {
                 return true
             }
         }
@@ -193,36 +183,54 @@ export default class Castle extends RobotController {
         this.mostRecentlyAssigned = {x: x, y: y, turnOfAssignment: this.robot.me.turn}
     }
 
-    getCastlePositions(){
+    getCastleMainPositions(){
         let friendlies = this.robot.getVisibleRobots();
 
         for (let i =0;i < friendlies.length; i++){
             if (friendlies[i].id !== this.robot.me.id){
                 let ct = friendlies[i].castle_talk;
                 if (ct > 0){
-                    if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
-                        this.friendlyCastles.push(ct)
-                    }else{
-                        this.friendlyCastles.push(ct)
-                    }
+                    this.friendlyCastlesIds.push(friendlies[i].id);
+                    this.friendlyCastlesMain.push(ct);
+                    this.friendlyCastlesSecondary.push(-1)
                 }
             }
         }
 
-        if (this.friendlyCastles.length > 1){
-            if (this.friendlyCastles[0] > this.friendlyCastles[1]){
-                let temp = this.friendlyCastles[1];
-                this.friendlyCastles[1] = this.friendlyCastles[0];
-                this.friendlyCastles[0] = temp;
+        if (this.friendlyCastlesMain.length > 1){
+            if (this.friendlyCastlesMain[0] > this.friendlyCastlesMain[1]){
+                let temp = this.friendlyCastlesMain[1];
+                let temp1 = this.friendlyCastlesIds[1];
+                this.friendlyCastlesIds[1] = this.friendlyCastlesIds[0];
+                this.friendlyCastlesIds[0] = temp1;
+                this.friendlyCastlesMain[1] = this.friendlyCastlesMain[0];
+                this.friendlyCastlesMain[0] = temp;
+            }
+        }
+    }
+
+    getCastleSecondaryPositions(){
+        let friendlies = this.robot.getVisibleRobots();
+
+        for (let i =0;i < friendlies.length; i++){
+            if (friendlies[i].id !== this.robot.me.id){
+                let ct = friendlies[i].castle_talk;
+                if (ct > 0){
+                    for (let a = 0; a < this.friendlyCastlesIds.length;a++){
+                        if (this.friendlyCastlesIds[a] === friendlies[i].id){
+                            this.friendlyCastlesSecondary[a] = ct;
+                        }
+                    }
+                }
             }
         }
     }
 
     calculateMyTerritory(){
-        if (this.friendlyCastles.length === 0){
+        if (this.friendlyCastlesMain.length === 0){
             this.myTerritory = {start:0,end:this.robot.map.length - 1}
-        }else if (this.friendlyCastles.length === 1){
-            let other = this.friendlyCastles[0];
+        }else if (this.friendlyCastlesMain.length === 1){
+            let other = this.friendlyCastlesMain[0];
             let distanceHalved = Math.abs(Math.floor((other - this.maincoord) / 2));
 
             if (other > this.maincoord){
@@ -232,57 +240,108 @@ export default class Castle extends RobotController {
             }
         }else{
             let me = this.maincoord;
-            if (me < this.friendlyCastles[0]){
-                let other = this.friendlyCastles[0];
+            if (me < this.friendlyCastlesMain[0]){
+                let other = this.friendlyCastlesMain[0];
                 let distanceHalved = Math.abs(Math.floor((other - this.maincoord) / 2));
                 this.myTerritory = {start:0,end:other - distanceHalved}
-            }else if (me > this.friendlyCastles[0] && me < this.friendlyCastles[1]){
-                let otherLeft = this.friendlyCastles[0];
+            }else if (me > this.friendlyCastlesMain[0] && me < this.friendlyCastlesMain[1]){
+                let otherLeft = this.friendlyCastlesMain[0];
                 let distanceHalvedLeft = Math.abs(Math.floor((otherLeft - this.maincoord) / 2));
 
-                let otherRight = this.friendlyCastles[1];
+                let otherRight = this.friendlyCastlesMain[1];
                 let distanceHalvedRight = Math.abs(Math.floor((otherRight - this.maincoord) / 2));
 
                 this.myTerritory = {start:otherLeft + distanceHalvedLeft + 1, end: otherRight - distanceHalvedRight}
             }else{
-                let other = this.friendlyCastles[1];
+                let other = this.friendlyCastlesMain[1];
                 let distanceHalved = Math.abs(Math.floor((other - this.maincoord) / 2));
                 this.myTerritory = {start:other + distanceHalved + 1,end:this.robot.map.length - 1}
             }
         }
+    }
 
-        this.robot.log(this.friendlyCastles.length + " | " +this.myTerritory.start + " -> " + this.myTerritory.end)
+    talkMyMainPosition(){
+        if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
+            this.robot.castleTalk(this.robot.me.y)
+        } else {
+            this.robot.castleTalk(this.robot.me.x)
+        }
+    }
+
+    talkMySecondaryPosition(){
+        if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
+            this.robot.castleTalk(this.robot.me.x)
+        } else {
+            this.robot.castleTalk(this.robot.me.y)
+        }
+    }
+
+    mergeCastlePositions(){
+        for (let i = 0; i < this.friendlyCastlesMain.length; i++){
+            if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
+                this.friendlyCastles.push({id:this.friendlyCastlesIds[i],x:this.friendlyCastlesSecondary[i],y:this.friendlyCastlesMain[i]})
+            }else{
+                this.friendlyCastles.push({id:this.friendlyCastlesIds[i],y:this.friendlyCastlesSecondary[i],x:this.friendlyCastlesMain[i]})
+            }
+        }
+    }
+
+    signalIfDeadCastle(){
+        let castle = this.getCastleIfDead();
+        if (castle && this.lastDeadCastle !== castle) {
+            let signalRange = calculateDiagonalDistance(this.robot.me, castle);
+            if (this.robot.fuel >= signalRange) {
+                let encoded = this.encodeCoordinates(getSymmetricNode(castle.x,castle.y,this.robot.map,this.symmetry));
+                if (this.isOtherCastleBroadcastingSignal(encoded) === false) {
+                    this.robot.signal(encoded, signalRange * signalRange);
+                    this.lastDeadCastle = castle;
+                }
+            }
+        }
+    }
+
+    isOtherCastleBroadcastingSignal(signal){
+        for (let i = 0; i < this.friendlyCastlesIds.length;i++){
+            let robot = this.robot.getRobot(this.friendlyCastlesIds[i]);
+            if (robot.signal === signal){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    getCastleIfDead(){
+        for (let i = 0;i < this.units.friendlies.length; i++){
+            let ct = this.units.friendlies[i].castle_talk;
+            if (ct > 0){
+                for (let i = 0; i < this.friendlyCastlesMain.length; i++){
+                    if (ct === this.friendlyCastlesMain[i]){
+                        return this.friendlyCastles[i];
+                    }
+                }
+            }
+        }
     }
 
     run() {
         if (this.robot.me.turn === 1) {
-            if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
-                this.robot.castleTalk(this.robot.me.y)
-            } else {
-                this.robot.castleTalk(this.robot.me.x)
-            }
+            this.talkMyMainPosition();
         } else if (this.robot.me.turn === 2) {
-            if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
-                this.robot.castleTalk(this.robot.me.y)
-            } else {
-                this.robot.castleTalk(this.robot.me.x)
-            }
-            this.getCastlePositions();
+            this.talkMyMainPosition();
+            this.getCastleMainPositions();
             this.calculateMyTerritory();
             this.getKarboniteClusters();
+        }else if (this.robot.me.turn === 3){
+            this.talkMySecondaryPosition();
+        }else if (this.robot.me.turn === 4){
+            this.talkMySecondaryPosition();
+            this.getCastleSecondaryPositions();
+            this.mergeCastlePositions();
         }
 
+        this.units = this.getNearbyRobotsSplitInTeams();
+        this.signalIfDeadCastle();
         this.updateAssignedPositionsMap();
-        /*
-                if (this.robot.me.turn <= 2) {
-                    this.broadcastCastlePosition();
-                    this.listenToCastlePositions();
-                    if (this.robot.me.turn === 1) {
-                        if (this.castlePositions.length === 0 || this.robot.getVisibleRobots().length === 1) {
-                            this.willBuildRobots = true;
-                        }
-                    }
-                }*/
 
         if (this.willBuildRobots === true || true) {
             let buildingDecision = this.getBuildingDecision();
@@ -294,12 +353,8 @@ export default class Castle extends RobotController {
                         this.robot.signal(this.encodeCoordinates(mine), 2);
                         this.assignKarboniteMine(mine);
                     } else {
-                        return
+                        return;
                     }
-                    /* if (this.pilgrimCount < 255) {
-                         this.robot.signal(this.pilgrimCount, 2);
-                         this.pilgrimCount++;
-                     }*/
                 } else if (buildingDecision === SPECS.PREACHER || buildingDecision === SPECS.PROPHET) {
                     this.broadcastDefensivePosition();
                 }
@@ -313,7 +368,6 @@ export default class Castle extends RobotController {
         if (position) {
             this.assignPosition(position.x, position.y);
             let encoded = this.encodeCoordinates({x: position.x, y: position.y});
-            //this.robot.log("Encoded: " + encoded);
             this.robot.signal(encoded, 2);
             return true
         }
@@ -329,7 +383,6 @@ export default class Castle extends RobotController {
         for (let i = 0; i < sections.length; i++) {
             let section = sections[i];
             let pivot = this.getIterationPivot(section, offset);
-            //this.robot.log("Pivot: " + pivot + " [" + section[0] + "," + section[1] + "]");
             if (this.assignLeft === true) {
                 for (let a = pivot; a >= section[0]; a--) {
                     let loc = this.assignOffsetToProperCoord(a,offset);
@@ -388,11 +441,7 @@ export default class Castle extends RobotController {
     }
 
     isLocationUnassigned(x, y) {
-        if (!this.isAUnitStationedInPosition(x, y) && !this.isPositionAssigned(x, y)) {
-            //this.robot.log("Assign: " + "(" + x + "," + y + ")");
-            return true
-        }
-        return false
+        return !this.isAUnitStationedInPosition(x, y) && !this.isPositionAssigned(x, y);
     }
 
     getIterationPivot(section, offset) {
@@ -465,29 +514,6 @@ export default class Castle extends RobotController {
         }
     }
 
-    listenToCastlePositions() {
-        let robots = this.robot.getVisibleRobots();
-        this.castlePositions = [];
-        for (let i = 0; i < robots.length; i++) {
-            if (robots[i].id !== this.robot.me.id) {
-                let cTalk = robots[i].castle_talk;
-                if (cTalk) {
-                    let toBinary = cTalk.toString(2);
-                    let coords = getCoordsFromEightBits(this.robot, this.robot.map, toBinary, this.symmetry);
-                    this.castlePositions.push(coords)
-                }
-            }
-        }
-    }
-
-    broadcastCastlePosition() {
-        let castle = {x: this.robot.me.x, y: this.robot.me.y};
-        let bits = fitCoordsInEightBits(this.robot, this.robot.map, castle.x, castle.y, this.symmetry);
-        let broadcastValue = parseInt(bits, 2);
-        //this.robot.log(broadcastValue.toString());
-        this.robot.castleTalk(broadcastValue)
-    }
-
     getOppositeCastle() {
         let symmetricalX = this.robot.map.length - 1 - this.robot.me.x;
         let symmetricalY = this.robot.map.length - 1 - this.robot.me.y;
@@ -543,7 +569,6 @@ export default class Castle extends RobotController {
     getKarboniteClusters() {
         let karbMines = this.getKarboniteMinesOnMySide();
         this.maxPilgrims = karbMines.length;
-        this.robot.log("MAX: " + this.maxPilgrims);
         let loc = this.robot.me;
         //this.robot.log("Karb: " + karbMines.length);
         let cGen = new PointClusterGenerator(karbMines,this.robot);
@@ -555,7 +580,6 @@ export default class Castle extends RobotController {
            return distA - distB;
         });
 
-        //this.robot.log("Clusters: " + clusters.length);
         //cGen.printClusters();
     }
 

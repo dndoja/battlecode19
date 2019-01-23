@@ -102,7 +102,6 @@ export default class Preacher extends RobotController{
         //generator.printMap()
     }
 
-
     getNearbyRobotsSplitInTeams(){
         let robots = this.robot.getVisibleRobots();
         let friendlies = [];
@@ -123,7 +122,7 @@ export default class Preacher extends RobotController{
     checkBehind(){
         const behind = this.getBehind();
 
-        for (let i =0; i < this.nearbyFriendlies.length;i++){
+        for (let i=0; i < this.nearbyFriendlies.length;i++){
             if (this.nearbyFriendlies[i].x === behind.x && this.nearbyFriendlies[i].y === behind.y){
                 this.moveNigga++;
                 return
@@ -132,16 +131,27 @@ export default class Preacher extends RobotController{
         this.moveNigga = 0;
     }
 
+    updateIfDeadCastle(){
+        for (let i = 0; i < this.nearbyFriendlies.length; i++){
+            if (this.nearbyFriendlies.signal > 0 && this.nearbyFriendlies.signal <= 6464){
+                this.oppositeCastle = this.decodeCoords(this.nearbyFriendlies.signal);
+                this.createOffensiveMap();
+                this.breakFormation = true;
+            }
+        }
+    }
+
     run(){
         let robots = this.getNearbyRobotsSplitInTeams();
         this.nearbyEnemies = robots.enemies;
         this.nearbyFriendlies = robots.friendlies;
         this.checkBehind();
         this.robotmap = this.robot.getVisibleRobotMap();
-
+        this.updateIfDeadCastle();
         if (this.isOnDefensiveSpot()){
-            this.robot.castleTalk(1)
+            this.robot.castleTalk(255)
         }
+        this.broadcastIfDeadCastle();
 
         if (this.hasNearbyEnemies() === true){
             this.generateEnemyClusters();
@@ -230,6 +240,16 @@ export default class Preacher extends RobotController{
                         }
                     }
                 }
+            }
+        }
+    }
+
+    broadcastIfDeadCastle(){
+        if (this.robotmap[this.oppositeCastle.y][this.oppositeCastle.x] === 0){
+            if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
+                this.robot.castleTalk(this.oppositeCastle.y)
+            }else{
+                this.robot.castleTalk(this.oppositeCastle.x)
             }
         }
     }
@@ -338,7 +358,7 @@ export default class Preacher extends RobotController{
 
     shouldMoveMyAss(){
         let frontLine = this.getLineInFront();
-        return this.moveNigga > 2 || (this.haveAlliesAdvanced() === true && frontLine.length <= 5);
+        return this.moveNigga > 2 || (this.haveAlliesAdvanced() === true && frontLine.length <= 5) || this.breakFormation === true;
     }
 
     getRadioedPosition(){
@@ -350,6 +370,7 @@ export default class Preacher extends RobotController{
     }
 
     updateRobotObject(robot) {
+        this.robot = robot;
         super.updateRobotObject(robot);
     }
 }

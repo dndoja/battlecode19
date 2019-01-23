@@ -136,9 +136,10 @@ export default class Prophet extends RobotController{
         this.nearbyFriendlies = robots.friendlies;
         this.checkBehind();
         this.robotmap = this.robot.getVisibleRobotMap();
-
+        this.broadcastIfDeadCastle();
+        this.updateIfDeadCastle();
         if (this.isOnDefensiveSpot()){
-            this.robot.castleTalk(1)
+            this.robot.castleTalk(255)
         }
 
         if (this.hasNearbyEnemies() === true){
@@ -223,20 +224,46 @@ export default class Prophet extends RobotController{
         return false
     }
 
+    updateIfDeadCastle(){
+        for (let i = 0; i < this.nearbyFriendlies.length; i++){
+            if (this.nearbyFriendlies.signal > 0 && this.nearbyFriendlies.signal <= 6464){
+                this.oppositeCastle = this.decodeCoords(this.nearbyFriendlies.signal);
+                this.createOffensiveMap();
+                this.breakFormation = true;
+            }
+        }
+    }
+
+    broadcastIfDeadCastle(){
+        const id = this.robot.getVisibleRobotMap()[this.oppositeCastle.y][this.oppositeCastle.x];
+        if (id === 0 || (this.enemyCastleId && id !== this.enemyCastleId)){
+            this.robot.log("oX: " + this.oppositeCastle.x + " oY: " + this.oppositeCastle.y + " mX: " + this.robot.me.x + " mY: " + this.robot.me.y + " | " + id);
+
+            if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
+                this.robot.castleTalk(this.oppositeCastle.y)
+            }else{
+                this.robot.castleTalk(this.oppositeCastle.x)
+            }
+        }else if (id > 0 && this.robot.getRobot(id) !== null && this.robot.getRobot(id).unit === SPECS.CASTLE){
+            this.enemyCastleId = id;
+        }
+    }
+
+
     getLineInFront(){
         const front = this.getAhead();
         let robotsInFront = [];
         if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
             for (let i = -2; i <= 2; i++){
                 let y = front.y + i;
-                if (this.robotmap[y][front.x] > 0){
+                if (this.isPointOnMap({x:front.x,y:y}) && this.robotmap[y][front.x] > 0){
                     robotsInFront.push({x:front.x,y:y})
                 }
             }
         }else{
             for (let i = -2; i <= 2; i++){
                 let x = front.x + i;
-                if (this.robotmap[front.y][x] > 0){
+                if (this.isPointOnMap({x:x,y:front.y}) && this.robotmap[front.y][x] > 0){
                     robotsInFront.push({x:x,y:front.y})
                 }
             }
@@ -330,7 +357,7 @@ export default class Prophet extends RobotController{
 
     shouldMoveMyAss(){
         let frontLine = this.getLineInFront();
-        return this.moveNigga > 2 || (this.haveAlliesAdvanced() === true && frontLine.length <= 5) || this.isMyLineEngaged() === true;
+        return this.moveNigga > 2 || (this.haveAlliesAdvanced() === true && frontLine.length <= 5) || this.isMyLineEngaged() === true || this.breakFormation === true;
     }
 
     getRadioedPosition(){
@@ -342,6 +369,7 @@ export default class Prophet extends RobotController{
     }
 
     updateRobotObject(robot) {
+        this.robot = robot;
         super.updateRobotObject(robot);
     }
 }
