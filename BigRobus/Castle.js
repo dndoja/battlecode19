@@ -289,8 +289,8 @@ export default class Castle extends RobotController {
     signalIfDeadCastle(){
         let castle = this.getCastleIfDead();
         if (castle && this.lastDeadCastle !== castle) {
-            let signalRange = calculateDiagonalDistance(this.robot.me, castle);
-            if (this.robot.fuel >= signalRange) {
+            let signalRange = 2 * (Math.pow(this.robot.map.length,2));
+            if (this.robot.fuel >= Math.ceil(Math.sqrt(signalRange))) {
                 let encoded = this.encodeCoordinates(getSymmetricNode(castle.x,castle.y,this.robot.map,this.symmetry));
                 if (this.isOtherCastleBroadcastingSignal(encoded) === false) {
                     this.robot.signal(encoded, signalRange * signalRange);
