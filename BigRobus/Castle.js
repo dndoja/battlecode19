@@ -31,13 +31,13 @@ export default class Castle extends RobotController {
         this.friendlyCastlesIds = [];
         this.friendlyCastlesMain = [];
         this.friendlyCastlesSecondary = [];
+        this.enemyCastles = [];
         this.friendlyCastles = [];
         this.karbMines = this.getKarboniteMinesNearby().length;
         this.assignedMines = [];
         this.friendlyCastleNr = this.robot.getVisibleRobots().length;
         this.oppositeCastle = this.getOppositeCastle();
         this.assignedPositions = [];
-        this.enemyCastles = [];
 
         this.getNearbyChokes();
         this.createSurroundingsMap();
@@ -279,25 +279,47 @@ export default class Castle extends RobotController {
     mergeCastlePositions(){
         for (let i = 0; i < this.friendlyCastlesMain.length; i++){
             if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
-                this.friendlyCastles.push({id:this.friendlyCastlesIds[i],x:this.friendlyCastlesSecondary[i],y:this.friendlyCastlesMain[i]})
+                this.friendlyCastles.push({id:this.friendlyCastlesIds[i],x:this.friendlyCastlesSecondary[i],y:this.friendlyCastlesMain[i]});
+                let symmetric = getSymmetricNode(this.friendlyCastlesSecondary[i],this.friendlyCastlesMain[i],this.robot.map,this.symmetry);
+                this.enemyCastles.push({x:symmetric.x,y:symmetric.y,maincoord:symmetric.y})
             }else{
-                this.friendlyCastles.push({id:this.friendlyCastlesIds[i],y:this.friendlyCastlesSecondary[i],x:this.friendlyCastlesMain[i]})
+                this.friendlyCastles.push({id:this.friendlyCastlesIds[i],y:this.friendlyCastlesSecondary[i],x:this.friendlyCastlesMain[i]});
+                const symmetric = getSymmetricNode(this.friendlyCastlesMain[i],this.friendlyCastlesSecondary[i],this.robot.map,this.symmetry);
+                this.enemyCastles.push({x:symmetric.x,y:symmetric.y,maincoord:symmetric.x})
             }
         }
+        if (this.symmetry === constants.SYMMETRY_HORIZONTAL){
+            this.enemyCastles.push({x:this.oppositeCastle.x,y:this.oppositeCastle.y,maincoord:this.oppositeCastle.y})
+        }else{
+            this.enemyCastles.push({x:this.oppositeCastle.x,y:this.oppositeCastle.y,maincoord:this.oppositeCastle.x})
+        }
+
+        let str = "";
+        for (let i = 0; i < this.enemyCastles.length; i++){
+            str += "(" + this.enemyCastles[i].x + "," + this.enemyCastles[i].y + ") | " + this.enemyCastles[i].maincoord + " ";
+        }
+        this.robot.log(str);
     }
 
     signalIfDeadCastle(){
-        let castle = this.getCastleIfDead();
-        if (castle && this.lastDeadCastle !== castle) {
-            let signalRange = 2 * (Math.pow(this.robot.map.length,2));
-            if (this.robot.fuel >= Math.ceil(Math.sqrt(signalRange))) {
-                let encoded = this.encodeCoordinates(getSymmetricNode(castle.x,castle.y,this.robot.map,this.symmetry));
-                if (this.isOtherCastleBroadcastingSignal(encoded) === false) {
+        let signalRange = 2 * (Math.pow(this.robot.map.length, 2));
+        let castleIndex = this.getDeadCastleIndex();
+        //this.robot.log("IDX: " + castleIndex);
+        if (castleIndex !== -1) {
+            let castle = this.enemyCastles[castleIndex];
+            let closestCastle = this.getClosestCastleToPoint(castle);
+            if (closestCastle) {
+                let encoded = 10000 + this.encodeCoordinates(closestCastle);
+                if (this.robot.fuel >= Math.ceil(Math.sqrt(signalRange)) && this.isOtherCastleBroadcastingSignal(encoded) === false) {
                     this.robot.signal(encoded, signalRange);
-                    this.lastDeadCastle = castle;
+                    this.enemyCastles.splice(castleIndex, 1);
+                    return true;
+                } else if (this.isOtherCastleBroadcastingSignal(encoded) === true) {
+                    this.enemyCastles.splice(castleIndex, 1)
                 }
             }
         }
+        return false;
     }
 
     isOtherCastleBroadcastingSignal(signal){
@@ -310,17 +332,38 @@ export default class Castle extends RobotController {
         return false;
     }
 
-    getCastleIfDead(){
+    getClosestCastleToPoint(point){
+        let closest;
+        let smallestDist = 10000;
+
+        for (let i = 0; i < this.enemyCastles.length;i++){
+            const fc = this.enemyCastles[i];
+            if (point.x !== fc.x || point.y !== fc.y){
+                let dist = calculateDiagonalDistance(point,this.enemyCastles[i]);
+                if (dist < smallestDist){
+                    smallestDist = dist;
+                    closest = this.enemyCastles[i];
+                }
+            }
+        }
+        if (closest){
+            this.robot.log("CLX: " + closest.x + " CLY: " + closest.y);
+        }
+        return closest;
+    }
+
+    getDeadCastleIndex(){
         for (let i = 0;i < this.units.friendlies.length; i++){
             let ct = this.units.friendlies[i].castle_talk;
             if (ct > 0){
-                for (let i = 0; i < this.friendlyCastlesMain.length; i++){
-                    if (ct === this.friendlyCastlesMain[i]){
-                        return this.friendlyCastles[i];
+                for (let a = 0; a < this.enemyCastles.length; a++){
+                    if (ct === this.enemyCastles[a].maincoord){
+                        return a;
                     }
                 }
             }
         }
+        return -1
     }
 
     run() {
@@ -340,7 +383,7 @@ export default class Castle extends RobotController {
         }
 
         this.units = this.getNearbyRobotsSplitInTeams();
-        this.signalIfDeadCastle();
+        if (this.signalIfDeadCastle() === true){return;}
         this.updateAssignedPositionsMap();
 
         if (this.willBuildRobots === true || true) {
@@ -481,11 +524,10 @@ export default class Castle extends RobotController {
         if (this.robot.me.turn > 1 && this.pilgrimCount < this.maxPilgrims && this.robot.karbonite >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 50){
             this.pilgrimCount++;
             return SPECS.PILGRIM
-        }else if (Math.random() > 0.5 && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50){
+        }else if (false && Math.random() > 0.5 && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50){
             return SPECS.PREACHER;
         }else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST && this.robot.fuel >= 50){
             return SPECS.PROPHET}
-
     }
 
     buildRobot(unitToBuild) {

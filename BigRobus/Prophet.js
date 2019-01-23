@@ -82,13 +82,15 @@ export default class Prophet extends RobotController{
         return 0;
     }
 
-    createOffensiveMap(){
+    createOffensiveMap(print){
         let generator = new DijkstraMapGenerator(this.robot);
         generator.addGoal(this.oppositeCastle);
         let distance = Math.floor(Math.max(Math.abs(this.oppositeCastle.x - this.robot.me.x), Math.abs(this.oppositeCastle.y - this.robot.me.y))) + 10;
         generator.setLimits(this.robot.me.x - distance, this.robot.me.y - distance, this.oppositeCastle.x + distance, this.oppositeCastle.y + distance);
         this.offensiveMap = generator.generateMap();
-        //generator.printMap()
+        if (print) {
+            generator.printMap()
+        }
     }
 
     createDefensiveMap(){
@@ -225,11 +227,14 @@ export default class Prophet extends RobotController{
     }
 
     updateIfDeadCastle(){
-        for (let i = 0; i < this.nearbyFriendlies.length; i++){
-            if (this.nearbyFriendlies.signal > 0 && this.nearbyFriendlies.signal <= 6464){
-                this.oppositeCastle = this.decodeCoords(this.nearbyFriendlies.signal);
+        let units = this.robot.getVisibleRobots();
+        for (let i = 0; i < units.length; i++){
+            if (units[i].signal > 10000){
+                this.oppositeCastle = this.decodeWeightedCoords(units[i].signal);
+                this.robot.log("UPDATE: (" + this.oppositeCastle.x + "," + this.oppositeCastle.y + ")");
                 this.createOffensiveMap();
                 this.breakFormation = true;
+                return
             }
         }
     }
@@ -237,7 +242,7 @@ export default class Prophet extends RobotController{
     broadcastIfDeadCastle(){
         const id = this.robot.getVisibleRobotMap()[this.oppositeCastle.y][this.oppositeCastle.x];
         if (id === 0 || (this.enemyCastleId && id !== this.enemyCastleId)){
-            this.robot.log("oX: " + this.oppositeCastle.x + " oY: " + this.oppositeCastle.y + " mX: " + this.robot.me.x + " mY: " + this.robot.me.y + " | " + id);
+            //this.robot.log("oX: " + this.oppositeCastle.x + " oY: " + this.oppositeCastle.y + " mX: " + this.robot.me.x + " mY: " + this.robot.me.y + " | " + id);
 
             if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
                 this.robot.castleTalk(this.oppositeCastle.y)
@@ -274,7 +279,13 @@ export default class Prophet extends RobotController{
 
     moveToOffensiveSpot(){
         super.setDijkstraMap(this.offensiveMap);
-        let movement = this.moveAlongOffensiveMap(1,true);
+        let movement;
+
+        if (this.breakFormation === true) {
+            movement = this.moveAlongOffensiveMap(1);
+        }else{
+            movement = this.moveAlongOffensiveMap(1, true);
+        }
 
         if (movement) {
             return this.robot.move(movement.dX,movement.dY)
@@ -355,6 +366,12 @@ export default class Prophet extends RobotController{
         return {x:x,y:y}
     }
 
+    decodeWeightedCoords(encoded){
+        let x = encoded % 100;
+        let other = Math.floor(encoded / 100);
+        let y = other % 100;
+        return {x:x,y:y}
+    }
     shouldMoveMyAss(){
         let frontLine = this.getLineInFront();
         return this.moveNigga > 2 || (this.haveAlliesAdvanced() === true && frontLine.length <= 5) || this.isMyLineEngaged() === true || this.breakFormation === true;
