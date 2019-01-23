@@ -293,7 +293,7 @@ export default class Castle extends RobotController {
             if (this.robot.fuel >= Math.ceil(Math.sqrt(signalRange))) {
                 let encoded = this.encodeCoordinates(getSymmetricNode(castle.x,castle.y,this.robot.map,this.symmetry));
                 if (this.isOtherCastleBroadcastingSignal(encoded) === false) {
-                    this.robot.signal(encoded, signalRange * signalRange);
+                    this.robot.signal(encoded, signalRange);
                     this.lastDeadCastle = castle;
                 }
             }
