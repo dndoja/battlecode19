@@ -386,24 +386,47 @@ export default class Castle extends RobotController {
         if (this.signalIfDeadCastle() === true){return;}
         this.updateAssignedPositionsMap();
 
-        if (this.willBuildRobots === true || true) {
-            let buildingDecision = this.getBuildingDecision();
+        let buildingDecision = this.getBuildingDecision();
 
-            if (buildingDecision) {
-                if (buildingDecision === SPECS.PILGRIM) {
-                    let mine = this.getKarboniteMineToAssign();
-                    if (mine) {
-                        this.robot.signal(this.encodeCoordinates(mine), 2);
-                        this.assignKarboniteMine(mine);
-                    } else {
-                        return;
-                    }
-                } else if (buildingDecision === SPECS.PREACHER || buildingDecision === SPECS.PROPHET) {
-                    this.broadcastDefensivePosition();
+        if (buildingDecision) {
+            if (buildingDecision === SPECS.PILGRIM) {
+                let mine = this.getKarboniteMineToAssign();
+                if (mine) {
+                    this.robot.signal(this.encodeCoordinates(mine), 2);
+                    this.assignKarboniteMine(mine);
+                } else {
+                    return;
                 }
-                return this.buildRobot(buildingDecision);
+            } else if (buildingDecision === SPECS.PREACHER || buildingDecision === SPECS.PROPHET) {
+                this.broadcastDefensivePosition();
+            }
+            return this.buildRobot(buildingDecision);
+
+        }
+    }
+
+    doAlliesNeedReinforcements(){
+        return this.units.friendlies.length - this.units.enemies.length <= 1
+    }
+
+    doesAnyoneWantToBuildAChurch(){
+          for (let i = 0; i < this.units.friendlies.length; i++){
+              const unit = this.units.friendlies[i];
+              if (unit.castle_talk === 254){
+                  return true
+              }
+          }
+          return false;
+    }
+
+    doesChurchWantToBuild(){
+        for (let i = 0; i < this.units.friendlies.length; i++){
+            const unit = this.units.friendlies[i];
+            if (unit.castle_talk === 253){
+                return true
             }
         }
+        return false;
     }
 
     broadcastDefensivePosition(){
@@ -520,14 +543,38 @@ export default class Castle extends RobotController {
         return false
     }
 
-    getBuildingDecision() {
-        if (this.robot.me.turn > 1 && this.pilgrimCount < this.maxPilgrims && this.robot.karbonite >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 50){
+    decideNormally() {
+        if (this.robot.me.turn > 1 && this.pilgrimCount < this.maxPilgrims && this.robot.karbonite >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 50) {
             this.pilgrimCount++;
             return SPECS.PILGRIM
-        }else if (false && Math.random() > 0.5 && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50){
+        } else if ((Math.random() > 0.8 || this.robot.me.turn < 10) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50) {
             return SPECS.PREACHER;
-        }else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST && this.robot.fuel >= 50){
-            return SPECS.PROPHET}
+        } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST && this.robot.fuel >= 50) {
+            return SPECS.PROPHET
+        }
+    }
+
+    getBuildingDecision() {
+        const wantsToBuildChurch = this.doesAnyoneWantToBuildAChurch();
+        const churchWantsToBuild = this.doesChurchWantToBuild();
+
+        if (this.doAlliesNeedReinforcements()){
+            return this.decideNormally();
+        }else if (wantsToBuildChurch === false && churchWantsToBuild === false){
+            return this.decideNormally();
+        }else if (churchWantsToBuild === true){
+            if (false && (Math.random() > 0.8 || this.robot.me.turn < 10) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST + 30 && this.robot.fuel >= 75) {
+                return SPECS.PREACHER;
+            } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST + 30 && this.robot.fuel >= 75) {
+                return SPECS.PROPHET
+            }
+        }else if (wantsToBuildChurch === true){
+            if (false && (Math.random() > 0.8 || this.robot.me.turn < 10) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST + 50 && this.robot.fuel >= 125) {
+                return SPECS.PREACHER;
+            } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST + 50 && this.robot.fuel >= 125) {
+                return SPECS.PROPHET
+            }
+        }
     }
 
     buildRobot(unitToBuild) {

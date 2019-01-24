@@ -269,6 +269,13 @@ export default class RobotController {
         return this.robot.getRobot(id).team === this.robot.me.team
     }
 
+    decodeWeightedCoords(encoded){
+        let x = encoded % 100;
+        let other = Math.floor(encoded / 100);
+        let y = other % 100;
+        return {x:x,y:y}
+    }
+
     getOffsetsFromRadius(radius,x,y){
         if (!x){
             x = this.position.x;

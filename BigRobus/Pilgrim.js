@@ -53,7 +53,7 @@ export default class Pilgrim extends RobotController{
     }
 
     getClosestFuelMine(){
-        let offsets = super.getOffsetsFromRadius(10,this.robot.me.x,this.robot.me.y);
+        let offsets = super.getOffsetsFromRadius(3,this.robot.me.x,this.robot.me.y);
         let closestDist = 100000;
         let closestLoc;
 
@@ -108,11 +108,14 @@ export default class Pilgrim extends RobotController{
     }
 
     run(){
-
-        if (this.canBuildChurch() === true){
-            let bc = this.buildChurch();
-            if (bc){
-                return bc
+        if (this.shouldBuildChurch() === true) {
+            if (this.canBuildChurch() === true) {
+                let bc = this.buildChurch();
+                if (bc) {
+                    return bc
+                }
+            }else {
+                this.robot.castleTalk(254)
             }
         }
 
@@ -165,12 +168,16 @@ export default class Pilgrim extends RobotController{
 
     moveTowardsFuelMine(){
         this.currentGoal = this.fuelGoal;
-        return this.moveTowardsMine(this.fMap)
+        if (this.fMap[this.robot.me.y][this.robot.me.x] === 1) {
+            return this.moveTowardsMine(this.fMap, true)
+        }else {
+            return this.moveTowardsMine(this.fMap)
+        }
     }
 
-    moveTowardsMine(map){
+    moveTowardsMine(map,noParallelMovement){
         super.setDijkstraMap(map);
-        let movement = this.moveAlongDijkstraMap(1);
+        let movement = this.moveAlongDijkstraMap(1,noParallelMovement);
         if (movement){
             return this.robot.move(movement.dX,movement.dY)
         }
@@ -272,8 +279,12 @@ export default class Pilgrim extends RobotController{
         return false
     }
 
+    shouldBuildChurch(){
+        return this.getAmountOfKarboniteNearby() >= 2 && this.isThereAStructureNearby() === false;
+    }
+
     canBuildChurch(){
-        return this.getAmountOfKarboniteNearby() >= 2 && this.robot.karbonite >= 50 && this.robot.fuel >= 200 && this.isThereAStructureNearby() === false
+        return this.robot.karbonite >= 50 && this.robot.fuel >= 200
     }
 
     isThereAStructureNearby(){

@@ -1,13 +1,8 @@
 import {BCAbstractRobot,SPECS} from 'battlecode';
-import {BuildingDecisionMaker} from './BuildingDecisionMaker.js';
-import {getMapSymmetryType,fitCoordsInEightBits,getCoordsFromEightBits} from "./utils.js";
-import DijkstraMapGenerator from  './DijkstraMapGenerator.js'
-import RobotController from "./RobotController.js";
 import Castle from "./Castle.js";
 import Crusader from "./Crusader.js";
 import Pilgrim from "./Pilgrim.js";
-import PointClusterGenerator from "./PointClusterGenerator.js";
-import Preacher from "./Preacher2.js";
+import Preacher from "./Preacher.js";
 import Prophet from "./Prophet.js";
 import Church from "./Church.js";
 
@@ -53,6 +48,7 @@ class MyRobot extends BCAbstractRobot {
             }else{
                 this.robot.updateRobotObject(this)
             }
+            return this.robot.run();
         }
     }
 }

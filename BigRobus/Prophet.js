@@ -1,6 +1,6 @@
 import {SPECS,BCAbstractRobot} from 'battlecode';
 import RobotController from "./RobotController.js";
-import {calculateDiagonalDistance,getDeltaBetweenPoints,getMapSymmetryType,getSymmetricNode,calculateManhattanDistance} from "./utils.js";
+import {calculateDiagonalDistance,getDeltaBetweenPoints,getMapSymmetryType,getSymmetricNode,calculateManhattanDistance,calculateDistanceSquared} from "./utils.js";
 import constants from "./constants.js";
 import DijkstraMapGenerator from "./DijkstraMapGenerator.js";
 
@@ -11,7 +11,6 @@ export default class Prophet extends RobotController{
         this.symmetry = getMapSymmetryType(this.robot.map);
         this.defensivePosition = this.getRadioedPosition();
         this.home = this.getClosestStructure(this.robot.me.team);
-        this.killem = false;
         this.oppositeCastle = getSymmetricNode(this.home.x,this.home.y,this.robot.map,this.symmetry);
         this.createDefensiveMap();
         this.moveNigga = 0;
@@ -147,7 +146,7 @@ export default class Prophet extends RobotController{
         if (this.hasNearbyEnemies() === true){
             let enemy = this.getPriorityEnemy();
             if (enemy) {
-                if ((!this.pastEnemy || this.pastEnemy.enemy.id !== enemy.enemy.id) && enemy.distance * enemy.distance === 64) {
+                if ((!this.pastEnemy || this.pastEnemy.enemy.id !== enemy.enemy.id) && enemy.distance === 64) {
                     this.pastEnemy = enemy;
                     this.robot.signal(this.encodeCoordinates(enemy.enemy), 25)
                 }
@@ -203,7 +202,7 @@ export default class Prophet extends RobotController{
             for (let i = -2; i <= 2; i++){
                 let y = this.robot.me.y + i;
                 let x = this.robot.me.x;
-                if (this.robotmap[y][x] > 0){
+                if (this.isPointOnMap({x:x,y:y}) && this.robotmap[y][x] > 0){
                     const robot = this.robot.getRobot(this.robotmap[y][x]);
                     if (robot.signal > 0){
                         return true;
@@ -214,7 +213,7 @@ export default class Prophet extends RobotController{
             for (let i = -2; i <= 2; i++){
                 let y = this.robot.me.y;
                 let x = this.robot.me.x+ i;
-                if (this.robotmap[y][x] > 0){
+                if (this.isPointOnMap({x:x,y:y}) && this.robotmap[y][x] > 0){
                     const robot = this.robot.getRobot(this.robotmap[y][x]);
                     if (robot.signal > 0){
                         return true;
@@ -253,7 +252,6 @@ export default class Prophet extends RobotController{
             this.enemyCastleId = id;
         }
     }
-
 
     getLineInFront(){
         const front = this.getAhead();
@@ -342,9 +340,9 @@ export default class Prophet extends RobotController{
             for (let a = 0; a < this.nearbyFriendlies.length;a++){
                 let friendly = this.nearbyFriendlies[a];
 
-                let dist = calculateDiagonalDistance(enemy,friendly);
-                let distFromMe = calculateDiagonalDistance(enemy,this.robot.me);
-                if (dist < closestDistance && distFromMe > 4){
+                let dist = calculateDistanceSquared(enemy,friendly);
+                let distFromMe = calculateDistanceSquared(enemy,this.robot.me);
+                if (dist < closestDistance && distFromMe >= 16){
                     closestDistance = dist;
                     closestEnemy = enemy;
                 }
@@ -366,19 +364,13 @@ export default class Prophet extends RobotController{
         return {x:x,y:y}
     }
 
-    decodeWeightedCoords(encoded){
-        let x = encoded % 100;
-        let other = Math.floor(encoded / 100);
-        let y = other % 100;
-        return {x:x,y:y}
-    }
     shouldMoveMyAss(){
         let frontLine = this.getLineInFront();
         return this.moveNigga > 2 || (this.haveAlliesAdvanced() === true && frontLine.length <= 5) || this.isMyLineEngaged() === true || this.breakFormation === true;
     }
 
     getRadioedPosition(){
-        let castle = super.getClosestCastle();
+        let castle = super.getClosestStructure(this.robot.me.team);
         let robotmap = this.robot.getVisibleRobotMap();
         let id = robotmap[castle.y][castle.x];
         let signal = this.robot.getRobot(id).signal;

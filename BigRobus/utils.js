@@ -127,6 +127,12 @@ export function getSymmetricNode(x,y,map,symmetry){
     }
 }
 
+export function calculateDistanceSquared(point1,point2){
+    let dX = point2.x - point1.x;
+    let dY = point2.y - point1.y;
+    return dX * dX + dY * dY
+}
+
 export function calculateDiagonalDistance(current, goal) {
     let absX = Math.abs(goal.x - current.x);
     let absY = Math.abs(goal.y - current.y);
