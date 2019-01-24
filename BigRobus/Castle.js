@@ -325,7 +325,7 @@ export default class Castle extends RobotController {
     isOtherCastleBroadcastingSignal(signal){
         for (let i = 0; i < this.friendlyCastlesIds.length;i++){
             let robot = this.robot.getRobot(this.friendlyCastlesIds[i]);
-            if (robot.signal === signal){
+            if (robot !== null && robot.signal === signal){
                 return true;
             }
         }
@@ -346,9 +346,7 @@ export default class Castle extends RobotController {
                 }
             }
         }
-        if (closest){
-            this.robot.log("CLX: " + closest.x + " CLY: " + closest.y);
-        }
+
         return closest;
     }
 
@@ -369,6 +367,7 @@ export default class Castle extends RobotController {
     run() {
         if (this.robot.me.turn === 1) {
             this.talkMyMainPosition();
+            this.decideIfShouldRush();
         } else if (this.robot.me.turn === 2) {
             this.talkMyMainPosition();
             this.getCastleMainPositions();
@@ -398,7 +397,11 @@ export default class Castle extends RobotController {
                     return;
                 }
             } else if (buildingDecision === SPECS.PREACHER || buildingDecision === SPECS.PROPHET) {
-                this.broadcastDefensivePosition();
+                if (this.shouldRush === false) {
+                    this.broadcastDefensivePosition();
+                }else{
+                    this.robot.signal(this.encodeCoordinates(this.oppositeCastle),2)
+                }
             }
             return this.buildRobot(buildingDecision);
 
@@ -406,7 +409,23 @@ export default class Castle extends RobotController {
     }
 
     doAlliesNeedReinforcements(){
-        return this.units.friendlies.length - this.units.enemies.length <= 1
+        let friendly = 0;
+        let enemy = 0;
+
+        for (let i =0; i < this.units.friendlies.length;i++){
+            const unit = this.units.friendlies[i].unit;
+            if (unit !== SPECS.PREACHER){
+                friendly++;
+            }
+        }
+
+        for (let i =0; i < this.units.enemies.length;i++){
+            const unit = this.units.enemies[i].unit;
+            if (unit !== SPECS.PREACHER){
+                enemy++;
+            }
+        }
+        return friendly - enemy <= 1
     }
 
     doesAnyoneWantToBuildAChurch(){
@@ -547,7 +566,7 @@ export default class Castle extends RobotController {
         if (this.robot.me.turn > 1 && this.pilgrimCount < this.maxPilgrims && this.robot.karbonite >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 50) {
             this.pilgrimCount++;
             return SPECS.PILGRIM
-        } else if ((Math.random() > 0.8 || this.robot.me.turn < 10) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50) {
+        } else if ((Math.random() > 0 || this.robot.me.turn < 10) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50) {
             return SPECS.PREACHER;
         } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST && this.robot.fuel >= 50) {
             return SPECS.PROPHET
@@ -555,24 +574,33 @@ export default class Castle extends RobotController {
     }
 
     getBuildingDecision() {
-        const wantsToBuildChurch = this.doesAnyoneWantToBuildAChurch();
-        const churchWantsToBuild = this.doesChurchWantToBuild();
+        if (this.shouldRush === false) {
+            const wantsToBuildChurch = this.doesAnyoneWantToBuildAChurch();
+            const churchWantsToBuild = this.doesChurchWantToBuild();
 
-        if (this.doAlliesNeedReinforcements()){
-            return this.decideNormally();
-        }else if (wantsToBuildChurch === false && churchWantsToBuild === false){
-            return this.decideNormally();
-        }else if (churchWantsToBuild === true){
-            if (false && (Math.random() > 0.8 || this.robot.me.turn < 10) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST + 30 && this.robot.fuel >= 75) {
-                return SPECS.PREACHER;
-            } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST + 30 && this.robot.fuel >= 75) {
-                return SPECS.PROPHET
+            if (this.doAlliesNeedReinforcements()) {
+                return this.decideNormally();
+            } else if (wantsToBuildChurch === false && churchWantsToBuild === false) {
+                return this.decideNormally();
+            } else if (churchWantsToBuild === true) {
+                if (false && (Math.random() > 0.8 || this.robot.me.turn < 10) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST + 30 && this.robot.fuel >= 75) {
+                    return SPECS.PREACHER;
+                } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST + 30 && this.robot.fuel >= 75) {
+                    return SPECS.PROPHET
+                }
+            } else if (wantsToBuildChurch === true) {
+                if (false && (Math.random() > 0.8 || this.robot.me.turn < 10) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST + 50 && this.robot.fuel >= 125) {
+                    return SPECS.PREACHER;
+                } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST + 50 && this.robot.fuel >= 125) {
+                    return SPECS.PROPHET
+                }
             }
-        }else if (wantsToBuildChurch === true){
-            if (false && (Math.random() > 0.8 || this.robot.me.turn < 10) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST + 50 && this.robot.fuel >= 125) {
+        }else{
+            if (this.robot.me.turn > 1 && this.pilgrimCount < this.maxPilgrims && this.robot.karbonite % 30 >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 100) {
+                this.pilgrimCount++;
+                return SPECS.PILGRIM
+            } else if (this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50) {
                 return SPECS.PREACHER;
-            } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST + 50 && this.robot.fuel >= 125) {
-                return SPECS.PROPHET
             }
         }
     }
@@ -723,5 +751,35 @@ export default class Castle extends RobotController {
             }
             return {start:startY,end:endY}
         }
+    }
+
+    decideIfShouldRush(){
+        if (this.robot.map.length <= 40 && this.friendlyCastleNr === 1){
+            this.generateOppositeCastleMap();
+            let smallest = 10000;
+
+            for (let i = -1; i <= 1; i++){
+                for (let a = -1; a <= -1; a++){
+                    let x = this.robot.me.x + a;
+                    let y = this.robot.me.y + i;
+                    if (this.isPointOnMap({x:x,y:y}) === true){
+                        if (this.toOppositeCastle[y][x] < smallest){
+                            smallest = this.toOppositeCastle[y][x]
+                        }
+                    }
+                }
+            }
+            if (smallest <= 40){
+                this.shouldRush = true;
+                return
+            }
+        }
+        this.shouldRush = false;
+    }
+
+    generateOppositeCastleMap(){
+        let generator = new DijkstraMapGenerator(this.robot);
+        generator.addGoal(this.oppositeCastle);
+        this.toOppositeCastle = generator.generateMap();
     }
 }

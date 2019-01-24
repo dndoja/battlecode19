@@ -96,8 +96,8 @@ export default class Preacher extends RobotController{
     createDefensiveMap(){
         let generator = new DijkstraMapGenerator(this.robot);
         generator.addGoal(this.defensivePosition);
-        //this.robot.log("Decoded: " + this.defensivePosition.x + " " + this.defensivePosition.y);
-        generator.setLimits(this.robot.me.x - 11, this.robot.me.y - 11, this.robot.me.x + 11, this.robot.me.y + 11);
+        let distance = Math.floor(Math.max(Math.abs(this.defensivePosition.x - this.robot.me.x), Math.abs(this.defensivePosition.y - this.robot.me.y))) + 10;
+        generator.setLimits(this.robot.me.x - distance, this.robot.me.y - distance, this.defensivePosition.x + distance, this.defensivePosition.y + distance);
         this.defensiveMap = generator.generateMap();
         //generator.printMap()
     }
@@ -205,7 +205,7 @@ export default class Preacher extends RobotController{
 
     generateEnemyClusters(){
         let clusterGen = new PointClusterGenerator(this.nearbyEnemies,this.robot);
-        clusterGen.setClusterRadius(1);
+        clusterGen.setClusterRadius(2);
         this.enemyClusters = clusterGen.generateClusters();
         //clusterGen.printClusters()
     }

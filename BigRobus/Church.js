@@ -175,7 +175,23 @@ export default class Church extends RobotController {
     }
 
     doAlliesNeedReinforcements(){
-        return this.units.friendlies.length - this.units.enemies.length <= 1
+        let friendly = 0;
+        let enemy = 0;
+
+        for (let i =0; i < this.units.friendlies.length;i++){
+            const unit = this.units.friendlies[i].unit;
+            if (unit !== SPECS.PREACHER){
+                friendly++;
+            }
+        }
+
+        for (let i =0; i < this.units.enemies.length;i++){
+            const unit = this.units.enemies[i].unit;
+            if (unit !== SPECS.PREACHER){
+                enemy++;
+            }
+        }
+        return friendly - enemy <= 1
     }
 
     broadcastDefensivePosition(){

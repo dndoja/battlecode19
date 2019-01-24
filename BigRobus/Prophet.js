@@ -230,7 +230,7 @@ export default class Prophet extends RobotController{
         for (let i = 0; i < units.length; i++){
             if (units[i].signal > 10000){
                 this.oppositeCastle = this.decodeWeightedCoords(units[i].signal);
-                this.robot.log("UPDATE: (" + this.oppositeCastle.x + "," + this.oppositeCastle.y + ")");
+                //this.robot.log("UPDATE: (" + this.oppositeCastle.x + "," + this.oppositeCastle.y + ")");
                 this.createOffensiveMap();
                 this.breakFormation = true;
                 return

@@ -237,20 +237,6 @@ export default class RobotController {
         return point.x > 0 && point.y > 0 && point.x < this.robot.map.length && point.y < this.robot.map.length
     }
 
-    getFriendlyCombatUnits(){
-        let nearbyUnits = this.robot.getVisibleRobots();
-
-        let units = [];
-        for (let i = 0; i < nearbyUnits.length; i++){
-            let currentRobot = nearbyUnits[i];
-            if (this.robot.me.team === currentRobot.team && this.robot.me.id !== currentRobot.id && (currentRobot.unit === SPECS.CRUSADER || currentRobot.unit === SPECS.PREACHER || currentRobot.unit === SPECS.PROPHET)){
-                units.push(currentRobot)
-            }
-        }
-
-        return units
-    }
-
     getFriendlyUnitsOfType(type) {
         let nearbyUnits = this.robot.getVisibleRobots();
 
