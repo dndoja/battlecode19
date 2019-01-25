@@ -92,7 +92,7 @@ export default class Pilgrim extends RobotController{
 
     generateFuelMap(){
         let closestFuelMine = this.getClosestFuelMine();
-        if (closestFuelMine.distanceTo <= MAX_DIST_TO_FUEL){
+        if (closestFuelMine && closestFuelMine.distanceTo <= MAX_DIST_TO_FUEL){
             let generator = new DijkstraMapGenerator(this.robot);
             generator.setLimits(this.robot.me.x - RADIUS_MINES, this.robot.me.y - RADIUS_MINES, closestFuelMine.position.x + RADIUS_MINES, closestFuelMine.position.y + RADIUS_MINES);
             this.fuelGoal = closestFuelMine.position;
