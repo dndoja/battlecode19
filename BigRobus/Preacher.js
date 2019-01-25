@@ -13,9 +13,10 @@ export default class Preacher extends RobotController{
         this.symmetry = getMapSymmetryType(this.robot.map);
         this.defensivePosition = this.getRadioedPosition();
         this.home = this.getClosestStructure(this.robot.me.team);
-        this.killem = false;
         this.oppositeCastle = getSymmetricNode(this.home.x,this.home.y,this.robot.map,this.symmetry);
-        this.createDefensiveMap();
+        if (this.defensivePosition) {
+            this.createDefensiveMap();
+        }
         this.moveNigga = 0;
     }
 
@@ -111,7 +112,7 @@ export default class Preacher extends RobotController{
         for (let i = 0; i < robots.length; i++){
             if (robots[i].team === myteam){
                 friendlies.push(robots[i])
-            }else{
+            }else if (robots[i].team){
                 enemies.push(robots[i])
             }
         }
@@ -132,11 +133,14 @@ export default class Preacher extends RobotController{
     }
 
     updateIfDeadCastle(){
-        for (let i = 0; i < this.nearbyFriendlies.length; i++){
-            if (this.nearbyFriendlies.signal > 0 && this.nearbyFriendlies.signal <= 6464){
-                this.oppositeCastle = this.decodeCoords(this.nearbyFriendlies.signal);
+        let units = this.robot.getVisibleRobots();
+        for (let i = 0; i < units.length; i++){
+            if (units[i].signal > 10000){
+                this.oppositeCastle = this.decodeWeightedCoords(units[i].signal);
+                //this.robot.log("UPDATE: (" + this.oppositeCastle.x + "," + this.oppositeCastle.y + ")");
                 this.createOffensiveMap();
                 this.breakFormation = true;
+                return
             }
         }
     }
@@ -148,7 +152,7 @@ export default class Preacher extends RobotController{
         this.checkBehind();
         this.robotmap = this.robot.getVisibleRobotMap();
         this.updateIfDeadCastle();
-        if (this.isOnDefensiveSpot()){
+        if (this.defensiveMap && this.isOnDefensiveSpot()){
             this.robot.castleTalk(255)
         }
         this.broadcastIfDeadCastle();
@@ -156,10 +160,8 @@ export default class Preacher extends RobotController{
         if (this.hasNearbyEnemies() === true){
             this.generateEnemyClusters();
             return this.attackBestCluster();
-        }else if (this.isOnDefensiveSpot() === false && !this.offensiveMap){
-            let moved = this.moveToDefensiveSpot();
-            return moved
-
+        }else if (this.defensiveMap && this.isOnDefensiveSpot() === false && !this.offensiveMap){
+            return this.moveToDefensiveSpot();
         }else if (this.shouldMoveMyAss() === true){
             if (!this.offensiveMap){this.createOffensiveMap();}
             return this.moveToOffensiveSpot()
@@ -245,12 +247,17 @@ export default class Preacher extends RobotController{
     }
 
     broadcastIfDeadCastle(){
-        if (this.robotmap[this.oppositeCastle.y][this.oppositeCastle.x] === 0){
+        const id = this.robot.getVisibleRobotMap()[this.oppositeCastle.y][this.oppositeCastle.x];
+        if (id !== -1 && (id === 0 || (this.enemyCastleId && id !== this.enemyCastleId))){
+            //this.robot.log("oX: " + this.oppositeCastle.x + " oY: " + this.oppositeCastle.y + " mX: " + this.robot.me.x + " mY: " + this.robot.me.y + " | " + id);
+
             if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
                 this.robot.castleTalk(this.oppositeCastle.y)
             }else{
                 this.robot.castleTalk(this.oppositeCastle.x)
             }
+        }else if (id > 0 && this.robot.getRobot(id) !== null && this.robot.getRobot(id).unit === SPECS.CASTLE){
+            this.enemyCastleId = id;
         }
     }
 
@@ -313,7 +320,7 @@ export default class Preacher extends RobotController{
         return false
     }
 
-    isOnDefensiveSpot(){
+    isOnDefensiveSpot() {
         return this.defensiveMap[this.robot.me.y][this.robot.me.x] === 0
     }
 
@@ -329,7 +336,7 @@ export default class Preacher extends RobotController{
 
     shouldMoveMyAss(){
         let frontLine = this.getLineInFront();
-        return this.moveNigga > 2 || (this.haveAlliesAdvanced() === true && frontLine.length <= 5) || this.breakFormation === true;
+        return this.moveNigga > 2 || (this.haveAlliesAdvanced() === true && frontLine.length <= 5) || this.breakFormation === true || !this.defensiveMap;
     }
 
     getRadioedPosition(){
@@ -337,7 +344,9 @@ export default class Preacher extends RobotController{
         let robotmap = this.robot.getVisibleRobotMap();
         let id = robotmap[castle.y][castle.x];
         let signal = this.robot.getRobot(id).signal;
-        return this.decodeCoords(signal)
+        if (signal > 0) {
+            return this.decodeCoords(signal)
+        }
     }
 
     updateRobotObject(robot) {

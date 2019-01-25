@@ -167,12 +167,14 @@ export default class Castle extends RobotController {
     }
 
     isAUnitStationedInPosition(x, y) {
-        let id = this.visibleRobotMap[y][x];
+        if (this.isPointOnMap({x:x,y:y}) === true) {
+            let id = this.visibleRobotMap[y][x];
 
-        if (id > 0) {
-            let robot = this.robot.getRobot(id);
-            if (robot.castle_talk === 255) {
-                return true
+            if (id > 0) {
+                let robot = this.robot.getRobot(id);
+                if (robot.castle_talk === 255) {
+                    return true
+                }
             }
         }
         return false
@@ -302,20 +304,23 @@ export default class Castle extends RobotController {
     }
 
     signalIfDeadCastle(){
-        let signalRange = 2 * (Math.pow(this.robot.map.length, 2));
-        let castleIndex = this.getDeadCastleIndex();
-        //this.robot.log("IDX: " + castleIndex);
-        if (castleIndex !== -1) {
-            let castle = this.enemyCastles[castleIndex];
-            let closestCastle = this.getClosestCastleToPoint(castle);
-            if (closestCastle) {
-                let encoded = 10000 + this.encodeCoordinates(closestCastle);
-                if (this.robot.fuel >= Math.ceil(Math.sqrt(signalRange)) && this.isOtherCastleBroadcastingSignal(encoded) === false) {
-                    this.robot.signal(encoded, signalRange);
-                    this.enemyCastles.splice(castleIndex, 1);
-                    return true;
-                } else if (this.isOtherCastleBroadcastingSignal(encoded) === true) {
-                    this.enemyCastles.splice(castleIndex, 1)
+        if (this.robot.me.turn > 5) {
+            let signalRange = 2 * (Math.pow(this.robot.map.length, 2));
+            let castleIndex = this.getDeadCastleIndex();
+            //this.robot.log("IDX: " + castleIndex);
+            if (castleIndex !== -1) {
+                let castle = this.enemyCastles[castleIndex];
+                let closestCastle = this.getClosestCastleToPoint(castle);
+                if (closestCastle) {
+                    let encoded = 10000 + this.encodeCoordinates(closestCastle);
+                    if (this.robot.fuel >= Math.ceil(Math.sqrt(signalRange)) && this.isOtherCastleBroadcastingSignal(encoded) === false) {
+                        this.robot.signal(encoded, signalRange);
+                        this.enemyCastles.splice(castleIndex, 1);
+                        this.robot.log("GANGANGGANG " + this.robot.me.turn + " | " + encoded);
+                        return true;
+                    } else if (this.isOtherCastleBroadcastingSignal(encoded) === true) {
+                        this.enemyCastles.splice(castleIndex, 1)
+                    }
                 }
             }
         }
@@ -353,9 +358,10 @@ export default class Castle extends RobotController {
     getDeadCastleIndex(){
         for (let i = 0;i < this.units.friendlies.length; i++){
             let ct = this.units.friendlies[i].castle_talk;
-            if (ct > 0){
+            if (ct > 0 && this.units.friendlies[i].id){
                 for (let a = 0; a < this.enemyCastles.length; a++){
                     if (ct === this.enemyCastles[a].maincoord){
+                        //this.robot.log("turn: " + this.robot.me.turn + " id: " + this.units.friendlies[i].id + " ct: " + ct);
                         return a;
                     }
                 }
@@ -368,6 +374,8 @@ export default class Castle extends RobotController {
         if (this.robot.me.turn === 1) {
             this.talkMyMainPosition();
             this.decideIfShouldRush();
+            this.decideIfShouldBuild();
+            //this.robot.log("sr: " + this.shouldRush)
         } else if (this.robot.me.turn === 2) {
             this.talkMyMainPosition();
             this.getCastleMainPositions();
@@ -382,29 +390,28 @@ export default class Castle extends RobotController {
         }
 
         this.units = this.getNearbyRobotsSplitInTeams();
-        if (this.signalIfDeadCastle() === true){return;}
+        if (this.signalIfDeadCastle() === true){return this;}
         this.updateAssignedPositionsMap();
 
-        let buildingDecision = this.getBuildingDecision();
+        if (this.shouldBuild === true) {
+            let buildingDecision = this.getBuildingDecision();
 
-        if (buildingDecision) {
-            if (buildingDecision === SPECS.PILGRIM) {
-                let mine = this.getKarboniteMineToAssign();
-                if (mine) {
-                    this.robot.signal(this.encodeCoordinates(mine), 2);
-                    this.assignKarboniteMine(mine);
-                } else {
-                    return;
+            if (buildingDecision) {
+                if (buildingDecision === SPECS.PILGRIM) {
+                    let mine = this.getKarboniteMineToAssign();
+                    if (mine) {
+                        this.robot.signal(this.encodeCoordinates(mine), 2);
+                        this.assignKarboniteMine(mine);
+                    } else {
+                        return;
+                    }
+                } else if (buildingDecision === SPECS.PREACHER || buildingDecision === SPECS.PROPHET) {
+                    if (this.shouldRush === false) {
+                        this.broadcastDefensivePosition();
+                    }
                 }
-            } else if (buildingDecision === SPECS.PREACHER || buildingDecision === SPECS.PROPHET) {
-                if (this.shouldRush === false) {
-                    this.broadcastDefensivePosition();
-                }else{
-                    this.robot.signal(this.encodeCoordinates(this.oppositeCastle),2)
-                }
+                return this.buildRobot(buildingDecision);
             }
-            return this.buildRobot(buildingDecision);
-
         }
     }
 
@@ -566,7 +573,7 @@ export default class Castle extends RobotController {
         if (this.robot.me.turn > 1 && this.pilgrimCount < this.maxPilgrims && this.robot.karbonite >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 50) {
             this.pilgrimCount++;
             return SPECS.PILGRIM
-        } else if ((Math.random() > 0 || this.robot.me.turn < 10) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50) {
+        } else if (this.robot.me.turn < 10 && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50) {
             return SPECS.PREACHER;
         } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST && this.robot.fuel >= 50) {
             return SPECS.PROPHET
@@ -754,7 +761,9 @@ export default class Castle extends RobotController {
     }
 
     decideIfShouldRush(){
-        if (this.robot.map.length <= 40 && this.friendlyCastleNr === 1){
+        let dist = calculateDiagonalDistance(this.robot.me,this.oppositeCastle);
+
+        if (dist <= 50 && this.friendlyCastleNr <= 2){
             this.generateOppositeCastleMap();
             let smallest = 10000;
 
@@ -780,6 +789,12 @@ export default class Castle extends RobotController {
     generateOppositeCastleMap(){
         let generator = new DijkstraMapGenerator(this.robot);
         generator.addGoal(this.oppositeCastle);
+        let distance = Math.floor(Math.max(Math.abs(this.robot.me.x - this.oppositeCastle.x), Math.abs(this.robot.me.y - this.oppositeCastle.y))) + 10;
+        generator.setLimits(this.robot.me.x - distance, this.robot.me.y - distance, this.oppositeCastle.x + distance, this.oppositeCastle.y + distance);
         this.toOppositeCastle = generator.generateMap();
+    }
+
+    decideIfShouldBuild() {
+        this.shouldBuild = this.robot.shouldRush === false || this.robot.karbonite === 100;
     }
 }

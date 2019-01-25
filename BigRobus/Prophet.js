@@ -137,8 +137,8 @@ export default class Prophet extends RobotController{
         this.nearbyFriendlies = robots.friendlies;
         this.checkBehind();
         this.robotmap = this.robot.getVisibleRobotMap();
-        this.broadcastIfDeadCastle();
         this.updateIfDeadCastle();
+        this.broadcastIfDeadCastle();
         if (this.isOnDefensiveSpot()){
             this.robot.castleTalk(255)
         }
@@ -240,7 +240,7 @@ export default class Prophet extends RobotController{
 
     broadcastIfDeadCastle(){
         const id = this.robot.getVisibleRobotMap()[this.oppositeCastle.y][this.oppositeCastle.x];
-        if (id === 0 || (this.enemyCastleId && id !== this.enemyCastleId)){
+        if (id !== -1 && (id === 0 || (this.enemyCastleId && id !== this.enemyCastleId))){
             //this.robot.log("oX: " + this.oppositeCastle.x + " oY: " + this.oppositeCastle.y + " mX: " + this.robot.me.x + " mY: " + this.robot.me.y + " | " + id);
 
             if (this.symmetry === constants.SYMMETRY_HORIZONTAL) {
@@ -332,8 +332,75 @@ export default class Prophet extends RobotController{
     }
 
     getPriorityEnemy(){
+        let closestEnemies = this.getClosestEnemies();
+
+        if (closestEnemies.length === 1){
+            return closestEnemies[0]
+        }else if (closestEnemies.length > 1){
+            let mostDamaged = this.getMostDamagedEnemies(closestEnemies);
+            if (mostDamaged.length === 1){
+                return mostDamaged[0]
+            }else if (mostDamaged.length > 1){
+                const prioritized = this.prioritizeEnemy(mostDamaged);
+                return prioritized.enemy;
+            }
+        }
+    }
+
+    prioritizeEnemy(enemies) {
+        let byPriority = [];
+
+        for (let i = 0; i < enemies.length; i++) {
+            let weight = 0;
+            switch (enemies[i].enemy.unit) {
+                case SPECS.PREACHER:
+                    weight = 6;
+                    break;
+                case SPECS.CRUSADER:
+                    weight = 5;
+                    break;
+                case SPECS.PROPHET:
+                    weight = 4;
+                    break;
+                case SPECS.CASTLE:
+                    weight = 3;
+                    break;
+                case SPECS.CHURCH:
+                    weight = 2;
+                    break;
+                case SPECS.PILGRIM:
+                    weight = 1;
+                    break;
+            }
+            byPriority.push({enemy: enemies[i], priority: weight})
+        }
+
+        byPriority.sort(function (a,b) {
+            return b.priority - a.priority
+        });
+
+        return byPriority[0];
+    }
+
+
+    getMostDamagedEnemies(enemies){
+        let lowestHealth = enemies[0].enemy.health;
+        let mostDamaged = [enemies[0]];
+
+        for (let i = 1; i < enemies.length; i++){
+            if (enemies[i].enemy.health < lowestHealth){
+                lowestHealth = enemies[i].enemy.health;
+                mostDamaged = [enemies[i]]
+            }else if (enemies[i].enemy.health === lowestHealth){
+                mostDamaged.push(enemies[i])
+            }
+        }
+        return mostDamaged
+    }
+
+    getClosestEnemies(){
         let closestDistance = 10000;
-        let closestEnemy;
+        let closestEnemies = [];
 
         for (let i = 0; i < this.nearbyEnemies.length;i++){
             let enemy = this.nearbyEnemies[i];
@@ -342,16 +409,17 @@ export default class Prophet extends RobotController{
 
                 let dist = calculateDistanceSquared(enemy,friendly);
                 let distFromMe = calculateDistanceSquared(enemy,this.robot.me);
-                if (dist < closestDistance && distFromMe >= 16){
-                    closestDistance = dist;
-                    closestEnemy = enemy;
+                if (distFromMe >= 16) {
+                    if (dist < closestDistance) {
+                        closestDistance = dist;
+                        closestEnemies = [{enemy:enemy,distance:closestDistance}];
+                    } else if (dist === closestDistance) {
+                        closestEnemies.push({enemy:enemy,distance:closestDistance})
+                    }
                 }
             }
         }
-
-        if (closestEnemy) {
-            return {enemy: closestEnemy, distance: closestDistance}
-        }
+        return closestEnemies
     }
 
     hasNearbyEnemies(){
