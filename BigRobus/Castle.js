@@ -575,7 +575,7 @@ export default class Castle extends RobotController {
         if (this.robot.me.turn > 1 && this.pilgrimCount < this.maxPilgrims && this.robot.karbonite >= constants.PILGRIM_KARBONITE_COST && this.robot.fuel >= 50) {
             this.pilgrimCount++;
             return SPECS.PILGRIM
-        } else if (this.robot.me.turn < 10 && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50) {
+        } else if ((this.robot.me.turn < 10 || this.shouldCounterKnights() === true) && this.robot.karbonite >= constants.PREACHER_KARBONITE_COST && this.robot.fuel >= 50) {
             return SPECS.PREACHER;
         } else if (this.robot.karbonite >= constants.PROPHET_KARBONITE_COST && this.robot.fuel >= 50) {
             return SPECS.PROPHET
@@ -760,6 +760,23 @@ export default class Castle extends RobotController {
             }
             return {start:startY,end:endY}
         }
+    }
+
+    shouldCounterKnights(){
+        let enemyKnights = 0;
+        let friendlyPreachers = 0;
+        let units = this.robot.getVisibleRobots();
+
+        for (let i = 0; i < units.length; i++){
+            let unit = units[i];
+            if (unit.unit === SPECS.CRUSADER && unit.team !== this.robot.me.team){
+                enemyKnights++;
+            }else if (unit.unit === SPECS.PREACHER && unit.team === this.robot.me.team){
+                friendlyPreachers++;
+            }
+        }
+
+        return enemyKnights > friendlyPreachers;
     }
 
     decideIfShouldRush(){

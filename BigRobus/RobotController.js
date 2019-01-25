@@ -69,7 +69,7 @@ export default class RobotController {
         for (let i = 0; i < robots.length; i++){
             if (robots[i].team === myteam){
                 friendlies.push(robots[i])
-            }else{
+            }else if (robots[i].team){
                 enemies.push(robots[i])
             }
         }
