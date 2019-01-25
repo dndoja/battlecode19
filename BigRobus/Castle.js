@@ -9,6 +9,8 @@ import PointClusterGenerator from "./PointClusterGenerator.js";
 
 const CHOKE_RADIUS = 10;
 const CHOKE_RADIUS_S = 5;
+const MAX_RUSH_DISTANCE = 30;
+const MAX_RUSH_STEPS = 30;
 
 export default class Castle extends RobotController {
     constructor(robot) {
@@ -305,7 +307,7 @@ export default class Castle extends RobotController {
 
     signalIfDeadCastle(){
         if (this.robot.me.turn > 5) {
-            let signalRange = 2 * (Math.pow(this.robot.map.length, 2));
+            let signalRange = 2 * (Math.pow(this.robot.map.length - 1, 2));
             let castleIndex = this.getDeadCastleIndex();
             //this.robot.log("IDX: " + castleIndex);
             if (castleIndex !== -1) {
@@ -763,7 +765,7 @@ export default class Castle extends RobotController {
     decideIfShouldRush(){
         let dist = calculateDiagonalDistance(this.robot.me,this.oppositeCastle);
 
-        if (dist <= 50 && this.friendlyCastleNr <= 2){
+        if (dist <= MAX_RUSH_DISTANCE && this.friendlyCastleNr <= 2){
             this.generateOppositeCastleMap();
             let smallest = 10000;
 
@@ -778,7 +780,7 @@ export default class Castle extends RobotController {
                     }
                 }
             }
-            if (smallest <= 40){
+            if (smallest <= MAX_RUSH_STEPS){
                 this.shouldRush = true;
                 return
             }
